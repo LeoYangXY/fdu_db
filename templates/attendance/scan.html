@@ -1,0 +1,7 @@
+<!-- templates/attendance/scan.html -->
+<form action="{% url 'validate_identity' %}" method="post">
+  {% csrf_token %}
+  <input type="text" name="student_id" placeholder="输入学号">
+  <input type="text" name="course_code" placeholder="输入课程代码">
+  <button type="submit">签到</button>
+</form>
