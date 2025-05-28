@@ -12,7 +12,6 @@ from .models import Course
 
 #教师访问URL → 输入课程号 → 生成签到二维码
 #但是当前实现存在严重的安全漏洞：任何知道URL的人都可以生成签到二维码
-
 def generate_course_qrcode(request):
     if request.method == 'POST':
         course_code = request.POST.get('course_code')

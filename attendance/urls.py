@@ -9,9 +9,11 @@ urlpatterns = [
     path('validate/', views.validate_identity, name='validate_identity'),  # 处理签到
     path('confirm/', views.confirm_attendance, name='confirm_attendance'),  # 确认界面
 
-    # 新增请假功能URL
-    path('submit_leave/', views.submit_leave, name='submit_leave'),  # 提交请假
-    path('approve_leave/<leave_id>/', views.approve_leave, name='approve_leave'),  # 批准请假
-    path('reject_leave/<leave_id>/', views.reject_leave, name='reject_leave'),  # 拒绝请假
-    path('leave_requests/', views.list_leave_requests, name='list_leave_requests'),  # 请假列表
+    # 请假相关
+    path('leave/apply/', views.apply_leave, name='apply_leave'),  # 学生申请请假
+
+    # 查询相关
+    path('records/check/', views.check_records, name='check_records'),  # 学生查询签到记录
+    path('leave/bulk_approval/', views.bulk_leave_approval, name='bulk_leave_approval'), # 教师管理请假(查看+审批)
+
 ]

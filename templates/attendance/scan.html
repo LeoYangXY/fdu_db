@@ -1,5 +1,8 @@
-<!-- 签到表单 -->
+<!-- 只包含签到表单 -->
+<h2>课程签到</h2>
+<p>课程代码: {{ course_code }}</p>
 <p>剩余签到时间: {{ remaining_minutes }}分{{ remaining_seconds }}秒</p>
+
 <form method="post" action="{% url 'validate_identity' %}">
     {% csrf_token %}
     <input type="hidden" name="course_code" value="{{ course_code }}">
@@ -10,17 +13,4 @@
         <input type="text" name="student_id" required autofocus>
     </label>
     <button type="submit">提交签到</button>
-</form>
-
-<!-- 请假表单 -->
-<form method="post" action="{% url 'submit_leave' %}">
-    {% csrf_token %}
-    <input type="hidden" name="course_code" value="{{ course_code }}">
-    <input type="hidden" name="timestamp" value="{{ timestamp }}">
-    <input type="hidden" name="limit_minutes" value="{{ limit_minutes }}">
-
-    <label>请假原因：
-        <textarea name="reason" required></textarea>
-    </label>
-    <button type="submit">提交请假申请</button>
 </form>

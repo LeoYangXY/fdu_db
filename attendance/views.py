@@ -17,6 +17,12 @@ from courses.models import Course
 import time
 from django.utils import timezone
 
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .models import LeaveRequest,Attendance
+
+
+
 #用print代替打断点
 #看报错的具体信息，而不是直接喂给ai，不然可能会很麻烦
 
@@ -173,127 +179,175 @@ def confirm_attendance(request):
     """最简单的确认页面"""
     return render(request, 'attendance/confirm.html')
 
+#学生只能请假一次（此处可以再优化）
+def apply_leave(request):
+    """学生请假申请（整合提交功能）"""
+    if request.method == 'POST':
+        # 获取表单数据
+        student_id = request.POST.get('student_id')
+        course_code = request.POST.get('course_code')
+        leave_date_str = request.POST.get('leave_date')
+        reason = request.POST.get('reason')
 
-def submit_leave(request):
+        try:
+            # 验证学生和课程
+            student = Student.objects.get(student_id=student_id)
+            course = Course.objects.get(course_code=course_code)
+            teacher = course.teacher  # 从课程获取教师
+
+            # 将字符串转换为日期对象
+            try:
+                leave_date = datetime.strptime(leave_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                messages.error(request, "日期格式不正确，请使用YYYY-MM-DD格式")
+                return redirect('apply_leave')
+
+            # 创建请假记录（leave_id会在save()时自动生成）
+            LeaveRequest.objects.create(
+                student=student,
+                teacher=teacher,
+                course=course,
+                leave_date=leave_date,
+                leave_reason=reason,
+                # leave_status默认为'pending'
+                # apply_date自动设置为当前时间
+            )
+
+            messages.success(request, "请假申请已提交，等待老师审批")
+            return redirect('apply_leave')
+
+        except Student.DoesNotExist:
+            messages.error(request, "学号不存在")
+        except Course.DoesNotExist:
+            messages.error(request, "课程代码不存在")
+        except Exception as e:
+            messages.error(request, f"提交失败: {str(e)}")
+
+    return render(request, 'attendance/apply_leave.html')
+
+
+
+#老师批准完毕之后，会在LeaveRequest表更新，也会在attendance表更新
+def bulk_leave_approval(request):
+    """批量请假审批"""
+    course = None
+    leave_requests = []
+
+    if request.method == 'POST':
+        # 处理课程查询
+        if 'query_course' in request.POST:
+            course_code = request.POST.get('course_code')
+            try:
+                course = Course.objects.get(course_code=course_code)
+                leave_requests = LeaveRequest.objects.filter(
+                    course=course,
+                    leave_status='pending'
+                ).order_by('leave_date')
+
+                if not leave_requests:
+                    messages.info(request, "该课程没有待审批的请假申请")
+
+            except Course.DoesNotExist:
+                messages.error(request, "课程代码不存在")
+
+        # 处理批量审批提交
+        elif 'submit_approvals' in request.POST:
+            course_code = request.POST.get('course_code')  # 改用course_code
+            decisions = request.POST.getlist('decisions')
+
+            try:
+                course = Course.objects.get(course_code=course_code)
+                leave_requests = LeaveRequest.objects.filter(
+                    course=course,
+                    leave_status='pending'
+                ).order_by('leave_date')
+
+                approved_count = 0
+                rejected_count = 0
+
+                # 处理每条审批决定
+                for i, leave in enumerate(leave_requests):
+                    if i < len(decisions):
+                        decision = decisions[i]
+
+                        if decision == 'approve':
+                            leave.leave_status = 'approved'
+                            approved_count += 1
+
+                            # 更新考勤记录
+                            Attendance.objects.update_or_create(
+                                student=leave.student,
+                                course=course,
+                                date=leave.leave_date,
+                                defaults={
+                                    'status': 'approved_leave',
+                                    'remark': f'请假批准: {leave.leave_reason}'
+                                }
+                            )
+                        else:
+                            leave.leave_status = 'rejected'
+                            rejected_count += 1
+
+                            # 更新考勤记录
+                            Attendance.objects.update_or_create(
+                                student=leave.student,
+                                course=course,
+                                date=leave.leave_date,
+                                defaults={
+                                    'status': 'absent',
+                                    'remark': f'请假被拒: {leave.leave_reason}'
+                                }
+                            )
+
+                        leave.save()
+
+                messages.success(
+                    request,
+                    f"成功处理审批: 批准 {approved_count} 条, 拒绝 {rejected_count} 条"
+                )
+                return redirect('bulk_leave_approval')
+
+            except Exception as e:
+                messages.error(request, f"处理出错: {str(e)}")
+
+    return render(request, 'attendance/bulk_leave_approval.html', {
+        'course': course,
+        'leave_requests': leave_requests
+    })
+
+
+#GET方法的时候，是到check_records这个网页；POST方法的时候，是到record_list这个网页
+def check_records(request):
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
         course_code = request.POST.get('course_code')
-        reason = request.POST.get('reason')
-        timestamp = request.POST.get('timestamp')
-        limit_minutes = request.POST.get('limit_minutes')
 
         try:
             student = Student.objects.get(student_id=student_id)
             course = Course.objects.get(course_code=course_code)
 
-            # 获取教师（假设Course模型有teacher字段）
-            teacher = course.teacher
+            # 获取该学生在该课程的所有考勤记录
+            records = Attendance.objects.filter(
+                student=student,
+                course=course
+            ).order_by('-date')
 
-            # 创建请假ID（格式：20230820-STU-COURSE）
-            leave_id = f"{timezone.now().strftime('%Y%m%d')}-{student.student_id}-{course.course_code}"
+            # 获取该学生在该课程的请假记录
+            leave_records = LeaveRequest.objects.filter(
+                student=student,
+                course=course
+            ).order_by('-leave_date')
 
-            # 检查是否已有记录
-            existing, created = LeaveRequest.objects.get_or_create(
-                leave_id=leave_id,
-                defaults={
-                    'student': student,
-                    'course': course,
-                    'teacher': teacher,
-                    'leave_date': timezone.now().date(),
-                    'leave_reason': reason,
-                    'leave_status': 'pending'
-                }
-            )
-
-            if not created:
-                existing.leave_reason = reason
-                existing.save()
-                messages.warning(request, "请假申请已更新")
-            else:
-                messages.success(request, "请假申请已提交")
-
-            return redirect('confirm_attendance')
+            return render(request, 'attendance/record_list.html', {
+                'student': student,
+                'course': course,
+                'records': records,
+                'leave_records': leave_records
+            })
 
         except Student.DoesNotExist:
-            messages.error(request, "学生不存在")
+            messages.error(request, "学号不存在")
         except Course.DoesNotExist:
-            messages.error(request, "课程不存在")
+            messages.error(request, "课程代码不存在")
 
-    return redirect('scan_qrcode_with_params',
-                    course=course_code,
-                    timestamp=timestamp,
-                    limit=limit_minutes)
-
-
-def approve_leave(request, leave_id):
-    try:
-        leave_request = LeaveRequest.objects.get(leave_id=leave_id)
-
-        if leave_request.leave_status != 'pending':
-            messages.warning(request, "该申请已被处理")
-            return redirect('list_leave_requests')
-
-        # 更新请假状态
-        leave_request.leave_status = 'approved'
-        leave_request.save()
-
-        # 更新考勤记录
-        Attendance.objects.update_or_create(
-            student=leave_request.student,
-            course=leave_request.course,
-            date=leave_request.leave_date,
-            defaults={
-                'status': 'approved_leave',
-                'remark': '已批准请假'
-            }
-        )
-
-        messages.success(request, "请假已批准")
-
-    except LeaveRequest.DoesNotExist:
-        messages.error(request, "记录不存在")
-
-    return redirect('list_leave_requests')
-
-
-def reject_leave(request, leave_id):
-    try:
-        leave_request = LeaveRequest.objects.get(leave_id=leave_id)
-
-        if leave_request.leave_status != 'pending':
-            messages.warning(request, "该申请已被处理")
-            return redirect('list_leave_requests')
-
-        # 更新请假状态
-        leave_request.leave_status = 'rejected'
-        leave_request.save()
-
-        # 更新考勤记录
-        Attendance.objects.update_or_create(
-            student=leave_request.student,
-            course=leave_request.course,
-            date=leave_request.leave_date,
-            defaults={
-                'status': 'absent',
-                'remark': '请假被拒绝'
-            }
-        )
-
-        messages.success(request, "请假已拒绝")
-
-    except LeaveRequest.DoesNotExist:
-        messages.error(request, "记录不存在")
-
-    return redirect('list_leave_requests')
-
-
-def list_leave_requests(request):
-    # 获取待处理请假申请（按教师过滤）
-    pending_requests = LeaveRequest.objects.filter(
-        leave_status='pending',
-        teacher=request.user.teacher_profile  # 假设使用user.teacher_profile获取教师信息
-    ).order_by('apply_date')
-
-    return render(request, 'attendance/leave_requests.html', {
-        'pending_requests': pending_requests
-    })
+    return render(request, 'attendance/check_records.html')
