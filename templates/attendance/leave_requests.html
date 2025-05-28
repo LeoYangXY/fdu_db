@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>待处理请假申请</title>
+    <style>
+        .table { width: 100%; border-collapse: collapse; }
+        .table th, .table td { border: 1px solid #ddd; padding: 8px; }
+        .btn { margin: 2px; padding: 4px 8px; text-decoration: none; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h2>待处理请假申请</h2>
+
+    {% if pending_requests %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>学生</th>
+                    <th>课程</th>
+                    <th>请假日期</th>
+                    <th>原因</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in pending_requests %}
+                    <tr>
+                        <td>{{ leave.student.name }}</td>
+                        <td>{{ leave.course.course_name }}</td>
+                        <td>{{ leave.leave_date|date:"Y-m-d" }}</td>
+                        <td>{{ leave.leave_reason|truncatechars:50 }}</td>
+                        <td>
+                            <a href="{% url 'approve_leave' leave.leave_id %}" class="btn btn-success">批准</a>
+                            <a href="{% url 'reject_leave' leave.leave_id %}" class="btn btn-danger">拒绝</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>没有待处理的请假申请</p>
+    {% endif %}
+</body>
+</html>

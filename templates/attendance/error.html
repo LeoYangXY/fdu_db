@@ -1,0 +1,22 @@
+<!-- templates/attendance/error.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>签到失败</title>
+</head>
+<body>
+    <h1>签到失败</h1>
+
+    <!-- 显示 Django messages 框架中的错误 -->
+    {% if messages %}
+        <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>未知错误，请重试。</p>
+    {% endif %}
+</body>
+</html>
