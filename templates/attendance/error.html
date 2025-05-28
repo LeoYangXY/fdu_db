@@ -4,19 +4,48 @@
 <head>
     <meta charset="UTF-8">
     <title>签到失败</title>
+    <style>
+        .error-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ff4444;
+            border-radius: 5px;
+            background-color: #ffebee;
+        }
+        .error-message {
+            color: #d32f2f;
+            margin: 10px 0;
+        }
+        .action-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #1976d2;
+            text-decoration: none;
+        }
+    </style>
 </head>
 <body>
-    <h1>签到失败</h1>
+    <div class="error-container">
+        <h1>签到失败</h1>
 
-    <!-- 显示 Django messages 框架中的错误 -->
-    {% if messages %}
-        <ul>
-            {% for message in messages %}
-                <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>未知错误，请重试。</p>
-    {% endif %}
+        <!-- 优先显示具体错误信息 -->
+        {% if specific_error %}
+            <p class="error-message">{{ specific_error }}</p>
+        {% endif %}
+
+        <!-- 显示Django messages框架中的其他错误 -->
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li class="error-message">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <!-- 返回链接 -->
+        <a href="javascript:history.back()" class="action-link">返回上一页</a>
+        <a href="/" class="action-link">返回首页</a>
+    </div>
 </body>
 </html>

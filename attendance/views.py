@@ -106,7 +106,19 @@ def validate_identity(request):
                 return render(request, 'attendance/error.html', {
                     'error': '参数丢失，无法继续签到'
                 })
-            print(1)
+
+            if Attendance.objects.filter(
+                student=student,
+                course=course,
+                date=current_time.date(),
+                status='present'  # 明确检查已签到状态
+            ).exists():
+                messages.error(request, "今日已签到，请勿重复操作")
+                return render(request, 'attendance/error.html', {
+                    'specific_error': '您今天已经完成签到，无需重复操作'
+                })
+
+            # print(1)
             # 检查请假
             has_valid_leave = LeaveRequest.objects.filter(
                 student=student,
@@ -118,7 +130,7 @@ def validate_identity(request):
             if has_valid_leave:
                 messages.warning(request, "您已成功请假，无需签到")
                 return redirect('confirm_attendance')
-            print(2)
+            # print(2)
             # 创建记录
             Attendance.objects.update_or_create(
                 student=student,
@@ -126,7 +138,7 @@ def validate_identity(request):
                 date=current_time.date(),
                 defaults={'status': 'present', 'scan_time': current_time}
             )
-            print(3)
+            # print(3)
             return redirect('confirm_attendance')
 
         except Student.DoesNotExist:
