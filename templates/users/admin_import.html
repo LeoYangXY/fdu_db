@@ -33,6 +33,7 @@
                     <option value="student">学生信息</option>
                     <option value="teacher">教师信息</option>
                     <option value="course">课程信息</option>
+                    <option value="enrollment">选课信息</option>  <!-- 新增选项 -->
                 </select>
             </div>
 
@@ -51,6 +52,7 @@
             <li><a href="{% url 'download_template' 'student' %}">学生信息模板</a></li>
             <li><a href="{% url 'download_template' 'teacher' %}">教师信息模板</a></li>
             <li><a href="{% url 'download_template' 'course' %}">课程信息模板</a></li>
+            <li><a href="{% url 'download_template' 'enrollment' %}">选课信息模板</a></li>  <!-- 新增链接 -->
         </ul>
 
         <h3>Excel文件格式说明:</h3>
@@ -58,6 +60,7 @@
             <li><strong>学生信息</strong>: 学号, 姓名, 院系, 专业, 性别(M/F), 微信openid</li>
             <li><strong>教师信息</strong>: 工号, 姓名, 院系, 联系方式</li>
             <li><strong>课程信息</strong>: 课程代码, 课程名称, 开课院系, 教师工号, 上课时间</li>
+            <li><strong>选课信息</strong>: 学号, 课程代码, 学期(如:2023-秋季)</li>  <!-- 新增说明 -->
         </ul>
         <p>注意：第一行应为标题行，数据从第二行开始</p>
     </div>

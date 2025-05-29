@@ -1,3 +1,5 @@
+from datetime import timezone
+
 from django.shortcuts import render
 
 # Create your views here.
@@ -6,7 +8,8 @@ import openpyxl
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from .models import (Student, Teacher)
-from courses.models import Course
+from courses.models import Course, Enrollment
+
 
 def admin_import(request):
     if request.method == 'POST':
@@ -29,6 +32,9 @@ def admin_import(request):
             elif data_type == 'course':
                 success_count = import_courses(sheet)
                 message = f'成功导入 {success_count} 条课程数据'
+            elif data_type == 'enrollment':  # 新增选课数据导入
+                success_count = import_enrollments(sheet)
+                message = f'成功导入 {success_count} 条选课数据'
             else:
                 message = '未知的数据类型'
 
@@ -38,7 +44,6 @@ def admin_import(request):
             return render(request, 'users/admin_import.html', {'error': f'导入失败: {str(e)}'})
 
     return render(request, 'users/admin_import.html')
-
 
 def import_students(sheet):
     count = 0
@@ -107,6 +112,30 @@ def import_courses(sheet):
     return count
 
 
+# 新增的导入选课数据函数
+def import_enrollments(sheet):
+    count = 0
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        if not row[0]:  # 跳过空行
+            continue
+
+        student_id, course_code, semester = row[:3]
+
+        # 检查学生和课程是否存在
+        if not Student.objects.filter(student_id=student_id).exists():
+            continue
+        if not Course.objects.filter(course_code=course_code).exists():
+            continue
+
+        Enrollment.objects.update_or_create(
+            student_id=student_id,
+            course_id=course_code,
+            semester=semester,
+            defaults={'enrollment_time': timezone.now()}
+        )
+        count += 1
+    return count
+
 def download_template(request, data_type):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -117,6 +146,8 @@ def download_template(request, data_type):
         ws.append(['工号', '姓名', '院系', '联系方式'])
     elif data_type == 'course':
         ws.append(['课程代码', '课程名称', '开课院系', '教师工号', '上课时间'])
+    elif data_type == 'enrollment':  # 新增选课模板
+        ws.append(['学号', '课程代码', '学期(如:2023-秋季)'])
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename={data_type}_template.xlsx'
