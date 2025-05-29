@@ -1,4 +1,5 @@
 import logging
+
 logger = logging.getLogger(__name__)  # 确保这行在视图函数之前
 from django.shortcuts import render
 from django.shortcuts import render, redirect
