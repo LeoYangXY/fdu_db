@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "tmp",
     'system_admin',   # 管理员功能
     'student',
     'teacher',
