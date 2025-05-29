@@ -31,30 +31,22 @@ def scan_qrcode_with_params(request, course_code, timestamp, limit):
         limit_minutes = int(limit)
         current_time = timezone.now()
         today = current_time.date()
-        print(0)
         # 获取课程对象
         course = Course.objects.get(course_code=course_code)
-        print(0.1)
         # 获取所有选课学生（X）
         enrollments = Enrollment.objects.filter(course=course)
-        print(0.15)
         student_ids = enrollments.values_list('student_id', flat=True)
-        print(0.2)
-        print(student_ids)
         students = Student.objects.filter(student_id__in=student_ids)
-        print(0.25)
         # 获取已批准请假的学生（Y）
         approved_leave_student_ids = LeaveRequest.objects.filter(
             course=course,
             leave_date=today,
             leave_status='approved'
         ).values_list('student_id', flat=True)
-        print(0.3)
         # 4. 计算缺勤学生（X - Y）
         absent_students = students.exclude(
             student_id__in=approved_leave_student_ids
         )
-        print(0.4)
         # 批量处理考勤记录
         with transaction.atomic():
             # 批量插入/更新请假学生记录
