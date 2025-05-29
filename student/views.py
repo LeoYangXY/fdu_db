@@ -149,8 +149,8 @@ def validate_identity(request):
 
             # 检查是否已有 approved_leave 或 present 记录
             existing_record = Attendance.objects.filter(
-                student=student.student_id,
-                course=course.course_code,
+                student=student,
+                course=course,
                 date=today,
                 status__in=['approved_leave', 'present']
             ).first()
