@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>教师考勤查询</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { padding: 8px; width: 100%; }
+        button { padding: 8px 15px; background: #4285F4; color: white; border: none; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>教师考勤查询</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+                <p class="error">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="course_code">课程代码:</label>
+                <input type="text" id="course_code" name="course_code" required>
+            </div>
+            <button type="submit">查询</button>
+        </form>
+    </div>
+</body>
+</html>

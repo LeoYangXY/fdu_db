@@ -317,7 +317,7 @@ def bulk_leave_approval(request):
 
 
 #GET方法的时候，是到check_records这个网页；POST方法的时候，是到record_list这个网页
-def check_records(request):
+def student_check_records(request):
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
         course_code = request.POST.get('course_code')
@@ -338,7 +338,7 @@ def check_records(request):
                 course=course
             ).order_by('-leave_date')
 
-            return render(request, 'attendance/record_list.html', {
+            return render(request, 'attendance/student_record_list.html', {
                 'student': student,
                 'course': course,
                 'records': records,
@@ -350,4 +350,42 @@ def check_records(request):
         except Course.DoesNotExist:
             messages.error(request, "课程代码不存在")
 
-    return render(request, 'attendance/check_records.html')
+    return render(request, 'attendance/student_check_records.html')
+
+
+def teacher_check_records(request):
+    if request.method == 'POST':
+        course_code = request.POST.get('course_code')
+
+        try:
+            course = Course.objects.get(course_code=course_code)
+
+            # 获取该课程的所有考勤记录
+            attendance_records = Attendance.objects.filter(
+                course=course
+            ).order_by('-date', 'student__name')
+
+            # 获取该课程的所有请假记录
+            leave_records = LeaveRequest.objects.filter(
+                course=course
+            ).order_by('-leave_date', 'student__name')
+
+            # 统计出勤情况
+            attendance_stats = {
+                'total': attendance_records.count(),
+                'present': attendance_records.filter(status='present').count(),
+                'absent': attendance_records.filter(status='absent').count(),
+                'late': attendance_records.filter(status='late').count(),
+            }
+
+            return render(request, 'attendance/teacher_record_list.html', {
+                'course': course,
+                'attendance_records': attendance_records,
+                'leave_records': leave_records,
+                'attendance_stats': attendance_stats
+            })
+
+        except Course.DoesNotExist:
+            messages.error(request, "课程代码不存在")
+
+    return render(request, 'attendance/teacher_check_records.html')

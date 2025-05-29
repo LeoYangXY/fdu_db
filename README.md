@@ -78,8 +78,9 @@ print(f"学生 {'创建成功' if student_created else '已存在'}：{student_o
 
 学生访问http://127.0.0.1:8000/attendance/leave/apply/即可进行请假
 老师访问http://127.0.0.1:8000/attendance/leave/bulk_approval/即可进行审批
-学生访问http://127.0.0.1:8000/attendance/records/check/，即可查看自己的签到+请假记录
 
+学生访问http://127.0.0.1:8000/attendance/student/records/，即可查看自己在某一课程的签到+请假记录
+老师访问http://127.0.0.1:8000/attendance/teacher/records/，即可查看某一课程的所有学生的签到+请假记录
 
 
 

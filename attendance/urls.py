@@ -12,8 +12,13 @@ urlpatterns = [
     # 请假相关
     path('leave/apply/', views.apply_leave, name='apply_leave'),  # 学生申请请假
 
-    # 查询相关
-    path('records/check/', views.check_records, name='check_records'),  # 学生查询签到记录
+
     path('leave/bulk_approval/', views.bulk_leave_approval, name='bulk_leave_approval'), # 教师管理请假(查看+审批)
+
+
+    # 学生考勤查询
+    path('student/records/', views.student_check_records, name='student_check_records'),
+    # 教师考勤查询
+    path('teacher/records/', views.teacher_check_records, name='teacher_check_records'),
 
 ]
