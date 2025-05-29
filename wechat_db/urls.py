@@ -26,5 +26,5 @@ urlpatterns = [
 
     path('attendance/', include('attendance.urls')),  # # 学生签到主流程
     path('courses/',include('courses.urls')),
-    # path('user/', include('users.urls')),  # # 用户系统基础路径（区分角色）
+    path('users/', include('users.urls')),
 ]

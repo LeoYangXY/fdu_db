@@ -80,3 +80,13 @@ print(f"学生 {'创建成功' if student_created else '已存在'}：{student_o
 老师访问http://127.0.0.1:8000/attendance/leave/bulk_approval/即可进行审批
 学生访问http://127.0.0.1:8000/attendance/records/check/，即可查看自己的签到+请假记录
 
+
+
+
+==========================
+管理员流程
+==========================
+访问http://127.0.0.1:8000/users/admin_import/
+可以下载学生，老师，课程模板，然后填写完毕之后可以上传
+上传了对应的excel文件之后，数据库中的Students表，Teachers表，Courses表就会有对应的更新
+
