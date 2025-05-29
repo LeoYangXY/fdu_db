@@ -24,7 +24,9 @@ urlpatterns = [
     path('tmp/', include('tmp.urls')),
 
 
-    path('attendance/', include('attendance.urls')),  # # 学生签到主流程
-    path('courses/',include('courses.urls')),
-    path('users/', include('users.urls')),
+    path('student/',include('student.urls')),
+    path('teacher/',include('teacher.urls')),
+    path('administrator/',include('administrator.urls'))
+
+
 ]

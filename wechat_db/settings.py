@@ -38,11 +38,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "tmp",
-    'users',          # 用户管理
-    'courses',        # 课程管理
-    'attendance',     # 考勤管理
-    'notifications',  # 通知管理
     'system_admin',   # 管理员功能
+    'student',
+    'teacher',
+    'administrator',
+    'core',
 ]
 
 MIDDLEWARE = [
