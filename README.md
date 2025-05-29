@@ -12,6 +12,7 @@
 老师：
 产生课程代码：http://127.0.0.1:8000/teacher/generate_qrcode/
 批准请假：http://127.0.0.1:8000/teacher/leave/bulk_approval/
+!在这里面融入：请假次数过多通知
 查看考勤：http://127.0.0.1:8000/teacher/teacher/records/
 ！！！！10002请假成功了，attendance表中有记录，但是网页上10002没有显示 ；请假记录都是未审批状态，无法正确提取数据
 
