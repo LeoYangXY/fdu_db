@@ -1,15 +1,16 @@
 #test流程：创建学生，老师，课程；生成签到码；进行签到
-import time
 from django.urls import reverse
+import time
 
-# 获取当前时间戳
-current_timestamp = int(time.time())
+# 参数均为字符串类型（即使数字也转为字符串）
+course_code = "EE201"
+timestamp = str(int(time.time()))  # 时间戳转为字符串
+limit = "120"  # 字符串形式
 
-# 构造 URL（假设 URL name 是 'scan_qrcode'）
-url = reverse('scan_qrcode_with_params', args=['EE201', current_timestamp, 120])
+# 生成URL
+url = reverse('scan_qrcode_with_params', args=[course_code, timestamp, limit])
 full_url = f"http://127.0.0.1:8000{url}"
 print(full_url)
-
 
 
 # 1. 导入必要的模块和模型

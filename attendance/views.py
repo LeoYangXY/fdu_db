@@ -1,9 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)  # 确保这行在视图函数之前
 from django.shortcuts import render
-
-# Create your views here.
-# views.py
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.utils import timezone
@@ -12,48 +9,88 @@ import datetime
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect
 from users.models import Student
-from courses.models import Course
-
+from courses.models import Course,Enrollment
 import time
 from django.utils import timezone
-
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import LeaveRequest,Attendance
-
-
+from django.db import transaction
+from django.db import transaction
+from django.utils import timezone
 
 #用print代替打断点
 #看报错的具体信息，而不是直接喂给ai，不然可能会很麻烦
 
-#补充error（签到失败）的前端界面
 
-def scan_qrcode_with_params(request, course, timestamp, limit):
+def scan_qrcode_with_params(request, course_code, timestamp, limit):
     try:
         # 参数类型转换
         timestamp_int = int(timestamp)
         limit_minutes = int(limit)
+        current_time = timezone.now()
+        today = current_time.date()
+        print(0)
+        # 获取课程对象
+        course = Course.objects.get(course_code=course_code)
+        print(0.1)
+        # 获取所有选课学生（X）
+        enrollments = Enrollment.objects.filter(course=course)
+        print(0.15)
+        student_ids = enrollments.values_list('student_id', flat=True)
+        print(0.2)
+        print(student_ids)
+        students = Student.objects.filter(student_id__in=student_ids)
+        print(0.25)
+        # 获取已批准请假的学生（Y）
+        approved_leave_student_ids = LeaveRequest.objects.filter(
+            course=course,
+            leave_date=today,
+            leave_status='approved'
+        ).values_list('student_id', flat=True)
+        print(0.3)
+        # 4. 计算缺勤学生（X - Y）
+        absent_students = students.exclude(
+            student_id__in=approved_leave_student_ids
+        )
+        print(0.4)
+        # 批量处理考勤记录
+        with transaction.atomic():
+            # 批量插入/更新请假学生记录
+            for student_id in approved_leave_student_ids:
+                Attendance.objects.update_or_create(
+                    student_id=student_id,
+                    course=course,
+                    date=today,
+                    defaults={'status': 'approved_leave'}
+                )
+
+            # 批量插入/更新缺勤学生记录
+            for student in absent_students:
+                Attendance.objects.update_or_create(
+                    student=student,
+                    course=course,
+                    date=today,
+                    defaults={'status': 'absent'}
+                )
 
         # 计算剩余时间
-        current_time = int(time.time())
-        remaining_seconds = max(0, timestamp_int + limit_minutes * 60 - current_time)
+        remaining_seconds = max(0, timestamp_int + limit_minutes * 60 - int(time.time()))
         remaining_minutes = remaining_seconds // 60
         remaining_seconds %= 60
 
         return render(request, 'attendance/scan.html', {
-            'course_code': course,
+            'course_code': course_code,
             'timestamp': timestamp_int,
             'limit_minutes': limit_minutes,
             'remaining': remaining_seconds,
             'remaining_minutes': remaining_minutes,
             'remaining_seconds': remaining_seconds
         })
+    except Course.DoesNotExist:
+        return render(request, 'attendance/error.html', {'error': '课程不存在'})
     except Exception as e:
         return render(request, 'attendance/error.html', {'error': f'参数错误：{str(e)}'})
-
-
-    #添加验证逻辑
-    #避免重复签到
 
 
 # 暂时的验证代码：
@@ -77,17 +114,45 @@ def scan_qrcode_with_params(request, course, timestamp, limit):
 # 重定向到确认页
 # 这一部分没有对应的网页要展示
 # attendance/views.py
+
+
+
+# 开始
+#   ↓
+# 教师生成二维码（调用 scan_qrcode_with_params 视图）
+#   ↓
+# 获取课程对象和当前日期
+#   ↓
+# 获取所有选课学生（X）
+#   ↓
+# 筛选出当天已批准请假的学生（Y）
+#   ↓
+# 批量插入/更新 Attendance 记录：
+#      Y → approved_leave
+#      X - Y → absent
+#   ↓
+# 跳转到扫码页面（scan.html）
+#   ↓
+# 学生扫码进入 validate_identity 视图
+#   ↓
+# 检查是否已有 approved_leave 或 present 记录？
+#     ↓ 是 → 阻止签到
+#     ↓ 否 → 检查是否超时？
+#         ↓ 是 → 无变化（保持 absent）
+#         ↓ 否 → 更新为 present
+
+
+
 def validate_identity(request):
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
-        course_code = request.POST.get('course_code', '')
-        timestamp = request.POST.get('timestamp', '')
-        limit_minutes = request.POST.get('limit_minutes', '')
+        course_code = request.POST.get('course_code')
+        timestamp = request.POST.get('timestamp')
+        limit_minutes = request.POST.get('limit_minutes')
 
         try:
-            # 参数验证
-            if not all([student_id, course_code, timestamp, limit_minutes]):
-                raise ValueError("缺少必要参数")
+            student = Student.objects.get(student_id=student_id)
+            course = Course.objects.get(course_code=course_code)
 
             # 类型转换
             try:
@@ -95,82 +160,54 @@ def validate_identity(request):
                 limit_int = int(limit_minutes)
             except ValueError:
                 raise ValueError("时间参数格式错误")
-
-            # 获取对象
-            student = Student.objects.get(student_id=student_id)
-            course = Course.objects.get(course_code=course_code)
-
-            # 时间有效性验证
             current_time = timezone.now()
-            # 正确使用 datetime.fromtimestamp
-            deadline = timezone.make_aware(
-                datetime.fromtimestamp(timestamp_int)  # 注意这里是 datetime.datetime.fromtimestamp
-            ) + timedelta(minutes=limit_int)
+            today = current_time.date()
+            deadline = timezone.make_aware(datetime.fromtimestamp(timestamp_int)) + timedelta(minutes=limit_int)
 
             if current_time > deadline:
                 messages.error(request, "超出签到时间限制")
                 return render(request, 'attendance/error.html', {
-                    'error': '参数丢失，无法继续签到'
+                    'error': '超出签到时间，签到系统已关闭'
                 })
 
-            if Attendance.objects.filter(
+            # 检查是否已有 approved_leave 或 present 记录
+            existing_record = Attendance.objects.filter(
                 student=student,
                 course=course,
-                date=current_time.date(),
-                status='present'  # 明确检查已签到状态
-            ).exists():
-                messages.error(request, "今日已签到，请勿重复操作")
-                return render(request, 'attendance/error.html', {
-                    'specific_error': '您今天已经完成签到，无需重复操作'
-                })
+                date=today,
+                status__in=['approved_leave', 'present']
+            ).first()
 
-            # print(1)
-            # 检查请假
-            has_valid_leave = LeaveRequest.objects.filter(
-                student=student,
-                course=course,
-                leave_date=current_time.date(),
-                leave_status='approved'
-            ).exists()
-
-            if has_valid_leave:
-                messages.warning(request, "您已成功请假，无需签到")
+            if existing_record:
+                if existing_record.status == 'approved_leave':
+                    messages.warning(request, "您已成功请假，无需签到")
+                elif existing_record.status == 'present':
+                    messages.warning(request, "您已成功签到")
                 return redirect('confirm_attendance')
-            # print(2)
-            # 创建记录
+
+            # 更新为出席
             Attendance.objects.update_or_create(
                 student=student,
                 course=course,
-                date=current_time.date(),
-                defaults={'status': 'present', 'scan_time': current_time}
+                date=today,
+                defaults={
+                    'status': 'present',
+                    'scan_time': current_time,
+                }
             )
-            # print(3)
+
             return redirect('confirm_attendance')
 
         except Student.DoesNotExist:
-            messages.error(request, "学生不存在")
-            logger.warning("Student.DoesNotExist: 学号不存在")
+            messages.error(request, "学号不存在")
         except Course.DoesNotExist:
             messages.error(request, "课程不存在")
-            logger.warning("Course.DoesNotExist: 课程不存在")
         except Exception as e:
             messages.error(request, f"签到失败：{str(e)}")
-            logger.error(f"签到失败: {str(e)}", exc_info=True)
 
-        # ✅ 确保参数存在再调用 redirect
-        if course_code and timestamp and limit_minutes:
-            return redirect('scan_qrcode_with_params',
-                            course=course_code,
-                            timestamp=int(timestamp),
-                            limit=int(limit_minutes))
-        else:
-            # 如果参数丢失，抛出错误或跳转到错误页面
-            return render(request, 'attendance/error.html', {
-                'error': '参数丢失，无法继续签到'
-            })
+        return redirect('scan_qrcode_with_params', course=course_code, timestamp=timestamp, limit=limit_minutes)
 
-    else:  # GET 请求
-        # ✅ 强制跳转到错误页面或返回 405 Method Not Allowed
+    else:
         return render(request, 'attendance/error.html', {
             'error': '请求方法不支持，请通过二维码扫码进入'
         })
@@ -227,9 +264,8 @@ def apply_leave(request):
 
 
 
-#老师批准完毕之后，会在LeaveRequest表更新，也会在attendance表更新
+#老师批准完毕之后，会在LeaveRequest表更新
 def bulk_leave_approval(request):
-    """批量请假审批"""
     course = None
     leave_requests = []
 
@@ -252,12 +288,12 @@ def bulk_leave_approval(request):
 
         # 处理批量审批提交
         elif 'submit_approvals' in request.POST:
-            course_code = request.POST.get('course_code')  # 改用course_code
+            course_code = request.POST.get('course_code')
             decisions = request.POST.getlist('decisions')
 
             try:
                 course = Course.objects.get(course_code=course_code)
-                leave_requests = LeaveRequest.objects.filter(
+                pending_requests = LeaveRequest.objects.filter(
                     course=course,
                     leave_status='pending'
                 ).order_by('leave_date')
@@ -265,41 +301,18 @@ def bulk_leave_approval(request):
                 approved_count = 0
                 rejected_count = 0
 
-                # 处理每条审批决定
-                for i, leave in enumerate(leave_requests):
+                for i, leave in enumerate(pending_requests):
                     if i < len(decisions):
                         decision = decisions[i]
 
                         if decision == 'approve':
                             leave.leave_status = 'approved'
                             approved_count += 1
-
-                            # 更新考勤记录
-                            Attendance.objects.update_or_create(
-                                student=leave.student,
-                                course=course,
-                                date=leave.leave_date,
-                                defaults={
-                                    'status': 'approved_leave',
-                                    'remark': f'请假批准: {leave.leave_reason}'
-                                }
-                            )
                         else:
                             leave.leave_status = 'rejected'
                             rejected_count += 1
 
-                            # 更新考勤记录
-                            Attendance.objects.update_or_create(
-                                student=leave.student,
-                                course=course,
-                                date=leave.leave_date,
-                                defaults={
-                                    'status': 'absent',
-                                    'remark': f'请假被拒: {leave.leave_reason}'
-                                }
-                            )
-
-                        leave.save()
+                        leave.save()  # ✅ 确保更新保存
 
                 messages.success(
                     request,
@@ -314,7 +327,6 @@ def bulk_leave_approval(request):
         'course': course,
         'leave_requests': leave_requests
     })
-
 
 #GET方法的时候，是到check_records这个网页；POST方法的时候，是到record_list这个网页
 def student_check_records(request):
