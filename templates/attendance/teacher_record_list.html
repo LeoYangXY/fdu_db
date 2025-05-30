@@ -3,16 +3,43 @@
 <head>
     <title>{{ course.course_name }}考勤记录</title>
     <style>
-        body { font-family: Arial; margin: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .stats { background: #f5f5f5; padding: 15px; margin-bottom: 20px; }
-        .stats span { margin-right: 20px; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        th { background: #f2f2f2; }
-        .present { color: green; }
-        .absent { color: red; }
-        .late { color: orange; }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .stats-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-item { display: inline-block; margin-right: 25px; }
+        .present { color: #28a745; }
+        .absent { color: #dc3545; }
+        .approved_leave { color: #17a2b8; }
+        .approved { color: #28a745; }
+        .pending { color: #ffc107; }
+        .rejected { color: #dc3545; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        th { background-color: #f8f9fa; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        .action-btns a {
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .approve-btn { background: #28a745; color: white; }
+        .reject-btn { background: #dc3545; color: white; margin-left: 8px; }
     </style>
 </head>
 <body>
@@ -20,14 +47,26 @@
         <h1>{{ course.course_name }} ({{ course.course_code }})</h1>
         <p>授课教师: {{ course.teacher.name }}</p>
 
-        <div class="stats">
-            <h3>考勤统计</h3>
-            <span>总记录: {{ attendance_stats.total }}</span>
-            <span class="present">出勤: {{ attendance_stats.present }}</span>
-            <span class="absent">缺勤: {{ attendance_stats.absent }}</span>
+        <!-- 考勤统计卡片 -->
+        <div class="stats-card">
+            <h3>📊 考勤统计</h3>
+            <div class="stat-item">总记录: {{ attendance_stats.total }}</div>
+            <div class="stat-item present">出勤: {{ attendance_stats.present }}</div>
+            <div class="stat-item absent">缺勤: {{ attendance_stats.absent }}</div>
+            <div class="stat-item approved_leave">批准请假: {{ attendance_stats.approved_leave }}</div>
         </div>
 
-        <h2>考勤记录</h2>
+        <!-- 请假统计卡片 -->
+        <div class="stats-card">
+            <h3>📝 请假统计</h3>
+            <div class="stat-item">总申请: {{ leave_stats.total }}</div>
+            <div class="stat-item approved">已批准: {{ leave_stats.approved }}</div>
+            <div class="stat-item pending">待审批: {{ leave_stats.pending }}</div>
+            <div class="stat-item rejected">已拒绝: {{ leave_stats.rejected }}</div>
+        </div>
+
+        <!-- 考勤记录表格 -->
+        <h2>📅 考勤记录</h2>
         <table>
             <thead>
                 <tr>
@@ -35,7 +74,7 @@
                     <th>学号</th>
                     <th>姓名</th>
                     <th>状态</th>
-                    <th>备注</th>
+                    <th>签到时间</th>
                 </tr>
             </thead>
             <tbody>
@@ -47,15 +86,22 @@
                     <td class="{{ record.status }}">
                         {% if record.status == 'present' %}出勤
                         {% elif record.status == 'absent' %}缺勤
+                        {% elif record.status == 'approved_leave' %}批准请假
                         {% endif %}
                     </td>
-                    <td>{{ record.notes }}</td>
+                    <td>
+                        {% if record.scan_time %}
+                            {{ record.scan_time|time:"H:i" }}
+                        {% else %}-
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <h2>请假记录</h2>
+        <!-- 请假记录表格 -->
+        <h2>📋 请假记录</h2>
         <table>
             <thead>
                 <tr>
@@ -64,6 +110,7 @@
                     <th>姓名</th>
                     <th>原因</th>
                     <th>状态</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -72,14 +119,29 @@
                     <td>{{ leave.leave_date|date:"Y-m-d" }}</td>
                     <td>{{ leave.student.student_id }}</td>
                     <td>{{ leave.student.name }}</td>
-                    <td>{{ leave.reason }}</td>
-                    <td>{% if leave.approved %}已批准{% else %}待审批{% endif %}</td>
+                    <td>{{ leave.reason|truncatechars:30 }}</td>
+                    <td class="{{ leave.leave_status }}">
+                        {% if leave.leave_status == 'approved' %}已批准
+                        {% elif leave.leave_status == 'rejected' %}已拒绝
+                        {% else %}待审批
+                        {% endif %}
+                    </td>
+                    <td class="action-btns">
+                        {% if leave.status == 'pending' %}
+                        <a href="{% url 'approve_leave' leave.id %}" class="approve-btn">批准</a>
+                        <a href="{% url 'reject_leave' leave.id %}" class="reject-btn">拒绝</a>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <a href="{% url 'teacher_check_records' %}">返回查询</a>
+        <div style="margin-top: 30px;">
+            <a href="{% url 'teacher_check_records' %}" style="padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+                ← 返回查询
+            </a>
+        </div>
     </div>
 </body>
 </html>

@@ -160,14 +160,22 @@ def teacher_check_records(request):
                 'total': attendance_records.count(),
                 'present': attendance_records.filter(status='present').count(),
                 'absent': attendance_records.filter(status='absent').count(),
+                'approved_leave':attendance_records.filter(status='approved_leave').count(),
             }
-
+            leave_stats = {
+                'total': leave_records.count(),
+                'approved': leave_records.filter(leave_status='approved').count(),
+                'pending': leave_records.filter(leave_status='pending').count(),
+                'rejected': leave_records.filter(leave_status='rejected').count(),
+            }
             return render(request, 'attendance/teacher_record_list.html', {
                 'course': course,
                 'attendance_records': attendance_records,
                 'leave_records': leave_records,
-                'attendance_stats': attendance_stats
+                'attendance_stats': attendance_stats,
+                'leave_stats': leave_stats  # 新增统计信息
             })
+
 
         except Course.DoesNotExist:
             messages.error(request, "课程代码不存在")
