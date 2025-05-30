@@ -25,7 +25,6 @@
             <span>总记录: {{ attendance_stats.total }}</span>
             <span class="present">出勤: {{ attendance_stats.present }}</span>
             <span class="absent">缺勤: {{ attendance_stats.absent }}</span>
-            <span class="late">迟到: {{ attendance_stats.late }}</span>
         </div>
 
         <h2>考勤记录</h2>
@@ -48,7 +47,6 @@
                     <td class="{{ record.status }}">
                         {% if record.status == 'present' %}出勤
                         {% elif record.status == 'absent' %}缺勤
-                        {% elif record.status == 'late' %}迟到
                         {% endif %}
                     </td>
                     <td>{{ record.notes }}</td>
