@@ -244,3 +244,7 @@ def teacher_check_records(request):
             messages.error(request, "课程代码不存在")
 
     return render(request, 'attendance/teacher_check_records.html')
+
+
+def teacher_dashboard(request):
+    return render(request, 'teacher_dashboard.html')

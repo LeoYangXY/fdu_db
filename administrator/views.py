@@ -157,5 +157,5 @@ def download_template(request, data_type):
 
     return response
 
-# 数据导入页面: http://yourdomain/users/admin_import
-# 下载模板: http://yourdomain/admin/download-template/student/ (或其他类型)
+def admin_dashboard(request):
+    return render(request, 'admin_dashboard.html')
