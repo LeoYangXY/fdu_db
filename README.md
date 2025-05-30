@@ -57,3 +57,11 @@ url = reverse('scan_qrcode_with_params', args=[course_code, timestamp, limit])
 full_url = f"http://127.0.0.1:8000{url}"
 print(full_url)
 去替代
+
+
+mysql命令行创建wechat_db
+
+make migration
+migrate
+
+管理员界面下载4个excel+填表，上传
