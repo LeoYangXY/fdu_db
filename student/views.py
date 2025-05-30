@@ -1,6 +1,6 @@
 from django.db.models import Count
 from django.shortcuts import render
-
+from django.core.cache import cache
 #用print代替打断点
 #看报错的具体信息，而不是直接喂给ai，不然可能会很麻烦
 
@@ -65,13 +65,16 @@ def scan_qrcode_with_params(request, course_code, timestamp, limit):
         })
 
 
+from django.core.cache import cache
+
+
 def validate_identity(request):
     if request.method == 'POST':
         # 初始化参数（防止后续引用未定义变量）
         student_id = request.POST.get('student_id', '').strip()
         course_code = request.POST.get('course_code', '').strip()
         timestamp = request.POST.get('timestamp', '').strip()
-        limit = request.POST.get('limit', '').strip()  # 确保与模板字段名一致
+        limit = request.POST.get('limit', '').strip()
 
         try:
             # 参数基础验证
@@ -85,6 +88,13 @@ def validate_identity(request):
             # 时效性验证
             if time.time() > timestamp_int + limit_int * 60:
                 raise ValueError("签到已超时")
+
+            # 生成缓存键（唯一标识这个学生的签到）
+            cache_key = f"attendance:{course_code}:{student_id}:{timezone.now().date().isoformat()}"
+
+            # 检查缓存是否存在（防止重复签到）
+            if cache.get(cache_key):
+                raise PermissionError("请勿重复签到")
 
             # 查询记录
             today = timezone.now().date()
@@ -104,6 +114,9 @@ def validate_identity(request):
             record.status = 'present'
             record.scan_time = timezone.now()
             record.save()
+
+            # 将签到成功状态写入缓存（有效期24小时）
+            cache.set(cache_key, 'present', timeout=24 * 60 * 60)
 
             messages.success(request, "签到成功！")
             return redirect('confirm_attendance')
