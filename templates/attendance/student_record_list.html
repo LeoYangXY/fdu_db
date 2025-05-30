@@ -1,124 +1,340 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ student.name }}的考勤记录</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #5a5c69;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.05);
+            padding: 30px;
+        }
+        
+        .header {
+            border-bottom: 1px solid #e3e6f0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        h2 {
+            color: #4e73df;
+            font-weight: 600;
+            margin: 30px 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
         .stats-card {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            border-top: 4px solid #4e73df;
+            transition: transform 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stats-card h3 {
+            color: #5a5c69;
+            font-size: 18px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
-        .stat-item { display: inline-block; margin-right: 25px; }
-        .present { color: #28a745; }
-        .absent { color: #dc3545; }
-        .approved_leave { color: #17a2b8; }
-        .approved { color: #28a745; }
-        .pending { color: #ffc107; }
-        .rejected { color: #dc3545; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        
+        .stat-item {
+            margin-bottom: 12px;
+            font-size: 15px;
         }
-        th, td {
-            border: 1px solid #dee2e6;
-            padding: 12px;
-            text-align: left;
+        
+        .present { color: #1cc88a; font-weight: 500; }
+        .absent { color: #e74a3b; font-weight: 500; }
+        .approved_leave { color: #36b9cc; font-weight: 500; }
+        .approved { color: #1cc88a; font-weight: 500; }
+        .pending { color: #f6c23e; font-weight: 500; }
+        .rejected { color: #e74a3b; font-weight: 500; }
+        
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 40px;
         }
-        th { background-color: #f8f9fa; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
+        
+        .table {
+            margin-bottom: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .table thead th {
+            background-color: #4e73df;
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px;
+        }
+        
+        .table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .table tbody tr:hover {
+            background-color: rgba(78, 115, 223, 0.05);
+        }
+        
+        .table td {
+            padding: 15px;
+            border-bottom: 1px solid #e3e6f0;
+            vertical-align: middle;
+        }
+        
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .badge-present {
+            background-color: rgba(28, 200, 138, 0.1);
+            color: #1cc88a;
+        }
+        
+        .badge-absent {
+            background-color: rgba(231, 74, 59, 0.1);
+            color: #e74a3b;
+        }
+        
+        .badge-approved_leave {
+            background-color: rgba(54, 185, 204, 0.1);
+            color: #36b9cc;
+        }
+        
+        .badge-approved {
+            background-color: rgba(28, 200, 138, 0.1);
+            color: #1cc88a;
+        }
+        
+        .badge-pending {
+            background-color: rgba(246, 194, 62, 0.1);
+            color: #f6c23e;
+        }
+        
+        .badge-rejected {
+            background-color: rgba(231, 74, 59, 0.1);
+            color: #e74a3b;
+        }
+        
+        .btn-back {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        
+        .btn-back:hover {
+            background-color: #5a6268;
+            transform: translateY(-2px);
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .table thead {
+                display: none;
+            }
+            
+            .table tbody tr {
+                display: block;
+                margin-bottom: 20px;
+                border: 1px solid #e3e6f0;
+                border-radius: 8px;
+            }
+            
+            .table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border: none;
+                border-bottom: 1px solid #e3e6f0;
+            }
+            
+            .table td:before {
+                content: attr(data-label);
+                font-weight: bold;
+                margin-right: 15px;
+                color: #5a5c69;
+            }
+            
+            .table td:last-child {
+                border-bottom: none;
+            }
+            
+            .status-badge {
+                margin-left: auto;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>{{ student.name }} (学号:{{ student.student_id }})</h1>
-        <h2>{{ course.course_name }} ({{ course.course_code }})</h2>
-
-        <!-- 考勤统计 -->
-        <div class="stats-card">
-            <h3>📊 我的考勤统计</h3>
-            <div class="stat-item">总记录: {{ attendance_stats.total }}</div>
-            <div class="stat-item present">出勤: {{ attendance_stats.present }}</div>
-            <div class="stat-item absent">缺勤: {{ attendance_stats.absent }}</div>
-            <div class="stat-item approved_leave">批准请假: {{ attendance_stats.approved_leave }}</div>
+        <div class="header">
+            <h1>{{ student.name }} <span class="text-muted" style="font-size: 18px;">学号: {{ student.student_id }}</span></h1>
+            <h2><i class="bi bi-book"></i> {{ course.course_name }} ({{ course.course_code }})</h2>
         </div>
 
-        <!-- 请假统计 -->
-        <div class="stats-card">
-            <h3>📝 我的请假统计</h3>
-            <div class="stat-item">总申请: {{ leave_stats.total }}</div>
-            <div class="stat-item approved">已批准: {{ leave_stats.approved }}</div>
-            <div class="stat-item pending">待审批: {{ leave_stats.pending }}</div>
-            <div class="stat-item rejected">已拒绝: {{ leave_stats.rejected }}</div>
+        <!-- 考勤统计 -->
+        <div class="stats-container">
+            <div class="stats-card">
+                <h3><i class="bi bi-calendar-check"></i> 我的考勤统计</h3>
+                <div class="stat-item">总记录: <strong>{{ attendance_stats.total }}</strong></div>
+                <div class="stat-item present">出勤: <strong>{{ attendance_stats.present }}</strong></div>
+                <div class="stat-item absent">缺勤: <strong>{{ attendance_stats.absent }}</strong></div>
+                <div class="stat-item approved_leave">批准请假: <strong>{{ attendance_stats.approved_leave }}</strong></div>
+            </div>
+
+            <div class="stats-card">
+                <h3><i class="bi bi-file-earmark-text"></i> 我的请假统计</h3>
+                <div class="stat-item">总申请: <strong>{{ leave_stats.total }}</strong></div>
+                <div class="stat-item approved">已批准: <strong>{{ leave_stats.approved }}</strong></div>
+                <div class="stat-item pending">待审批: <strong>{{ leave_stats.pending }}</strong></div>
+                <div class="stat-item rejected">已拒绝: <strong>{{ leave_stats.rejected }}</strong></div>
+            </div>
         </div>
 
         <!-- 考勤记录 -->
-        <h2>📅 我的考勤记录</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>日期</th>
-                    <th>状态</th>
-                    <th>签到时间</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for record in attendance_records %}
-                <tr>
-                    <td>{{ record.date|date:"Y-m-d" }}</td>
-                    <td class="{{ record.status }}">
-                        {% if record.status == 'present' %}出勤
-                        {% elif record.status == 'absent' %}缺勤
-                        {% elif record.status == 'approved_leave' %}批准请假
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if record.scan_time %}
-                            {{ record.scan_time|time:"H:i" }}
-                        {% else %}-
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h2><i class="bi bi-calendar-event"></i> 我的考勤记录</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>状态</th>
+                        <th>签到时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in attendance_records %}
+                    <tr>
+                        <td data-label="日期">{{ record.date|date:"Y-m-d" }}</td>
+                        <td data-label="状态">
+                            <span class="status-badge badge-{{ record.status }}">
+                                {% if record.status == 'present' %}
+                                    <i class="bi bi-check-circle"></i> 出勤
+                                {% elif record.status == 'absent' %}
+                                    <i class="bi bi-x-circle"></i> 缺勤
+                                {% elif record.status == 'approved_leave' %}
+                                    <i class="bi bi-check-circle"></i> 批准请假
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td data-label="签到时间">
+                            {% if record.scan_time %}
+                                {{ record.scan_time|time:"H:i" }}
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
         <!-- 请假记录 -->
-        <h2>📋 我的请假记录</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>请假日期</th>
-                    <th>原因</th>
-                    <th>状态</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for leave in leave_records %}
-                <tr>
-                    <td>{{ leave.leave_date|date:"Y-m-d" }}</td>
-                    <td>{{ leave.reason|truncatechars:30 }}</td>
-                    <td class="{{ leave.leave_status }}">
-                        {% if leave.leave_status == 'approved' %}✅ 已批准
-                        {% elif leave.leave_status == 'rejected' %}❌ 已拒绝
-                        {% else %}🕒 待审批
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h2><i class="bi bi-file-earmark-text"></i> 我的请假记录</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>请假日期</th>
+                        <th>原因</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in leave_records %}
+                    <tr>
+                        <td data-label="请假日期">{{ leave.leave_date|date:"Y-m-d" }}</td>
+                        <td data-label="原因" title="{{ leave.reason }}">
+                            {{ leave.reason|truncatechars:30 }}
+                        </td>
+                        <td data-label="状态">
+                            <span class="status-badge badge-{{ leave.leave_status }}">
+                                {% if leave.leave_status == 'approved' %}
+                                    <i class="bi bi-check-circle"></i> 已批准
+                                {% elif leave.leave_status == 'rejected' %}
+                                    <i class="bi bi-x-circle"></i> 已拒绝
+                                {% else %}
+                                    <i class="bi bi-clock-history"></i> 待审批
+                                {% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-        <div style="margin-top: 30px;">
-            <a href="{% url 'student_check_records' %}" style="padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
-                ← 返回查询
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="{% url 'student_check_records' %}" class="btn-back">
+                <i class="bi bi-arrow-left"></i> 返回查询
             </a>
         </div>
     </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
