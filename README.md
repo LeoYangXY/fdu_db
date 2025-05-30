@@ -18,9 +18,29 @@
 
 yxy
 6.请假次数过多通知
-7.管理员重新导入（管理员修改）   更新数据表student 学号+密码；  teacher  工号+密码    administor  管理号+密码
+
+[//]: # (7.管理员重新导入（管理员修改）   更新数据表student 学号+密码；  teacher  工号+密码    administor  管理号+密码)
+mysql中：先drop掉之前的wechat_db
+vscode中：在core/migrations下面的那里，除了__init__.py不要删除，别的如果有就都删掉
+mysql中：然后create wechat_db
+vscode中：python manage.py makemigrations，然后python manage.py migrate     
+
+上面的流程就是创建完数据库+数据表，下面我们创建实际数据（相当于填写每一行）：
+
+管理员创建：我们简单实现：在vscode中：python create_admin.py硬编码，直接操作数据库
+学生，老师，课程，选课信息导入：还是去之前的页面，下载excel表（学生和老师的excel更新了账号密码2个字段）
+
+然后去mysql中检查：core_administrator,core_student,core_teacher,core_courses,core_enrollment是否有填写好对应的数据
+
+
 请假次数过多：学生点按钮，看自己是否为危险人物
+
+
+！！！！！！！！！！！！！！
 （高并发）：架构设计的高并发：原本是每次学生签到都要提取数据库的表，此处是老师生成扫码界面就能预处理，实现了高并发
+考虑使用redis在签到那里直接加
+！！！！！！！！！！！！！！
+
 
 管理员： 
 填表，导入信息：http://127.0.0.1:8000/administrator/admin_import/
@@ -57,11 +77,3 @@ url = reverse('scan_qrcode_with_params', args=[course_code, timestamp, limit])
 full_url = f"http://127.0.0.1:8000{url}"
 print(full_url)
 去替代
-
-
-mysql命令行创建wechat_db
-
-make migration
-migrate
-
-管理员界面下载4个excel+填表，上传

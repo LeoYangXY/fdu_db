@@ -55,12 +55,13 @@
             <li><a href="{% url 'download_template' 'enrollment' %}">选课信息模板</a></li>  <!-- 新增链接 -->
         </ul>
 
+        <!-- 在文件格式说明部分更新 -->
         <h3>Excel文件格式说明:</h3>
         <ul>
-            <li><strong>学生信息</strong>: 学号, 姓名, 院系, 专业, 性别(M/F), 微信openid</li>
-            <li><strong>教师信息</strong>: 工号, 姓名, 院系, 联系方式</li>
+            <li><strong>学生信息</strong>: 学号, 姓名, 院系, 专业, 性别(M/F), 微信openid, 账号, 初始密码</li>
+            <li><strong>教师信息</strong>: 工号, 姓名, 院系, 联系方式, 账号, 初始密码</li>
             <li><strong>课程信息</strong>: 课程代码, 课程名称, 开课院系, 教师工号, 上课时间</li>
-            <li><strong>选课信息</strong>: 学号, 课程代码, 学期(如:2023-秋季)</li>  <!-- 新增说明 -->
+            <li><strong>选课信息</strong>: 学号, 课程代码, 学期(如:2023-秋季)</li>
         </ul>
         <p>注意：第一行应为标题行，数据从第二行开始</p>
     </div>
