@@ -146,14 +146,14 @@ def teacher_check_records(request):
                 course=course
             ).order_by('-date', 'student__name')
 
-            print(attendance_records)
+            # print(attendance_records)
 
             # 获取该课程的所有请假记录
             leave_records = LeaveRequest.objects.filter(
                 course=course
             ).order_by('-leave_date', 'student__name')
 
-            print(leave_records)
+            # print(leave_records)
 
             # 统计出勤情况
             attendance_stats = {

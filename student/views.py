@@ -255,23 +255,41 @@ def student_check_records(request):
             student = Student.objects.get(student_id=student_id)
             course = Course.objects.get(course_code=course_code)
 
-            # 获取该学生在该课程的所有考勤记录
-            records = Attendance.objects.filter(
+            # 获取考勤记录（按日期倒序）
+            attendance_records = Attendance.objects.filter(
                 student=student,
                 course=course
             ).order_by('-date')
 
-            # 获取该学生在该课程的请假记录
+            # 获取请假记录（按请假日期倒序）
             leave_records = LeaveRequest.objects.filter(
                 student=student,
                 course=course
             ).order_by('-leave_date')
 
+            # 统计考勤状态
+            attendance_stats = {
+                'total': attendance_records.count(),
+                'present': attendance_records.filter(status='present').count(),
+                'absent': attendance_records.filter(status='absent').count(),
+                'approved_leave': attendance_records.filter(status='approved_leave').count(),
+            }
+
+            # 统计请假状态（使用leave_status字段）
+            leave_stats = {
+                'total': leave_records.count(),
+                'approved': leave_records.filter(leave_status='approved').count(),
+                'pending': leave_records.filter(leave_status='pending').count(),
+                'rejected': leave_records.filter(leave_status='rejected').count(),
+            }
+
             return render(request, 'attendance/student_record_list.html', {
                 'student': student,
                 'course': course,
-                'records': records,
-                'leave_records': leave_records
+                'attendance_records': attendance_records,
+                'leave_records': leave_records,
+                'attendance_stats': attendance_stats,
+                'leave_stats': leave_stats
             })
 
         except Student.DoesNotExist:

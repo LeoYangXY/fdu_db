@@ -3,47 +3,93 @@
 <head>
     <title>{{ student.name }}的考勤记录</title>
     <style>
-        body { font-family: Arial; margin: 20px; }
+        body { font-family: Arial, sans-serif; margin: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        th { background: #f2f2f2; }
-        .present { color: green; }
-        .absent { color: red; }
-        .late { color: orange; }
+        .stats-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-item { display: inline-block; margin-right: 25px; }
+        .present { color: #28a745; }
+        .absent { color: #dc3545; }
+        .approved_leave { color: #17a2b8; }
+        .approved { color: #28a745; }
+        .pending { color: #ffc107; }
+        .rejected { color: #dc3545; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        th { background-color: #f8f9fa; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>{{ student.name }} ({{ student.student_id }})</h1>
+        <h1>{{ student.name }} (学号:{{ student.student_id }})</h1>
         <h2>{{ course.course_name }} ({{ course.course_code }})</h2>
 
-        <h3>考勤记录</h3>
+        <!-- 考勤统计 -->
+        <div class="stats-card">
+            <h3>📊 我的考勤统计</h3>
+            <div class="stat-item">总记录: {{ attendance_stats.total }}</div>
+            <div class="stat-item present">出勤: {{ attendance_stats.present }}</div>
+            <div class="stat-item absent">缺勤: {{ attendance_stats.absent }}</div>
+            <div class="stat-item approved_leave">批准请假: {{ attendance_stats.approved_leave }}</div>
+        </div>
+
+        <!-- 请假统计 -->
+        <div class="stats-card">
+            <h3>📝 我的请假统计</h3>
+            <div class="stat-item">总申请: {{ leave_stats.total }}</div>
+            <div class="stat-item approved">已批准: {{ leave_stats.approved }}</div>
+            <div class="stat-item pending">待审批: {{ leave_stats.pending }}</div>
+            <div class="stat-item rejected">已拒绝: {{ leave_stats.rejected }}</div>
+        </div>
+
+        <!-- 考勤记录 -->
+        <h2>📅 我的考勤记录</h2>
         <table>
             <thead>
                 <tr>
                     <th>日期</th>
                     <th>状态</th>
-                    <th>备注</th>
+                    <th>签到时间</th>
                 </tr>
             </thead>
             <tbody>
-                {% for record in records %}
+                {% for record in attendance_records %}
                 <tr>
                     <td>{{ record.date|date:"Y-m-d" }}</td>
                     <td class="{{ record.status }}">
                         {% if record.status == 'present' %}出勤
                         {% elif record.status == 'absent' %}缺勤
-                        {% elif record.status == 'late' %}迟到
+                        {% elif record.status == 'approved_leave' %}批准请假
                         {% endif %}
                     </td>
-                    <td>{{ record.notes }}</td>
+                    <td>
+                        {% if record.scan_time %}
+                            {{ record.scan_time|time:"H:i" }}
+                        {% else %}-
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <h3>请假记录</h3>
+        <!-- 请假记录 -->
+        <h2>📋 我的请假记录</h2>
         <table>
             <thead>
                 <tr>
@@ -56,14 +102,23 @@
                 {% for leave in leave_records %}
                 <tr>
                     <td>{{ leave.leave_date|date:"Y-m-d" }}</td>
-                    <td>{{ leave.reason }}</td>
-                    <td>{% if leave.approved %}已批准{% else %}待审批{% endif %}</td>
+                    <td>{{ leave.reason|truncatechars:30 }}</td>
+                    <td class="{{ leave.leave_status }}">
+                        {% if leave.leave_status == 'approved' %}✅ 已批准
+                        {% elif leave.leave_status == 'rejected' %}❌ 已拒绝
+                        {% else %}🕒 待审批
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <a href="{% url 'student_check_records' %}">返回查询</a>
+        <div style="margin-top: 30px;">
+            <a href="{% url 'student_check_records' %}" style="padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+                ← 返回查询
+            </a>
+        </div>
     </div>
 </body>
 </html>
