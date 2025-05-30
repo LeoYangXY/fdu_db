@@ -65,7 +65,6 @@ from django.utils import timezone
 import qrcode
 from io import BytesIO
 from django.http import HttpResponse
-
 def generate_course_qrcode(request):
     if request.method == 'POST':
         course_code = request.POST.get('course_code')
@@ -106,12 +105,14 @@ def generate_course_qrcode(request):
                 # 3.2 处理缺勤学生（X - Y）
                 absent_students = students.exclude(student_id__in=approved_leave_student_ids)
                 for student in absent_students:
-                    Attendance.objects.update_or_create(
-                        student=student,  # 使用Student对象
+                    attendance, created = Attendance.objects.get_or_create(
+                        student=student,
                         course=course,
-                        date=today,
-                        defaults={'status': 'absent'}
+                        date=today
                     )
+                    if created or attendance.status == 'absent':
+                        attendance.status = 'absent'
+                        attendance.save()
 
             # 生成二维码（带时间戳）
             qr_url = request.build_absolute_uri(
@@ -128,6 +129,7 @@ def generate_course_qrcode(request):
             return render(request, 'error.html', {'error': f'系统错误: {str(e)}'})
 
     return render(request, 'courses/generate_qrcode.html')
+
 
 #老师批准完毕之后，会在LeaveRequest表更新
 def bulk_leave_approval(request):
