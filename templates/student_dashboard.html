@@ -1,46 +1,245 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard</title>
+    <title>学生仪表盘</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: #f4f4f9;
-        }
-        .container {
-            background-color: #fff;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dashboard-container {
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dashboard-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #4e73df 0%, #224abe 100%);
+        }
+        
+        h2 {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 25px;
             text-align: center;
+            position: relative;
+            padding-bottom: 15px;
         }
-        a {
-            display: inline-block;
-            margin: 10px;
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
+        
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, #4e73df 0%, #224abe 100%);
+            border-radius: 2px;
+        }
+        
+        .welcome-text {
+            color: #5a5c69;
+            font-size: 18px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .qr-instruction {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-left: 4px solid #4e73df;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .qr-instruction i {
+            color: #4e73df;
+            font-size: 24px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .btn-action {
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
             text-decoration: none;
-            border-radius: 4px;
+            color: white;
         }
-        a:hover {
-            background-color: #0056b3;
+        
+        .btn-leave {
+            background-color: #4e73df;
+            border: 2px solid #4e73df;
+        }
+        
+        .btn-leave:hover {
+            background-color: #2e59d9;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(78, 115, 223, 0.3);
+        }
+        
+        .btn-records {
+            background-color: #1cc88a;
+            border: 2px solid #1cc88a;
+        }
+        
+        .btn-records:hover {
+            background-color: #17a673;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(28, 200, 138, 0.3);
+        }
+        
+        .btn-check {
+            background-color: #f6c23e;
+            border: 2px solid #f6c23e;
+            position: relative;
+        }
+        
+        .btn-check:hover {
+            background-color: #dda20a;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(246, 194, 62, 0.3);
+        }
+        
+        /* 新增：为检查按钮添加小红点提醒 */
+        .btn-check::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 12px;
+            height: 12px;
+            background-color: #e74a3b;
+            border-radius: 50%;
+            border: 2px solid white;
+            display: none; /* 默认隐藏，可以通过JS根据条件显示 */
+        }
+        
+        /* 新增：按钮组之间的分隔线 */
+        .button-group {
+            margin-bottom: 20px;
+        }
+        
+        .button-group-title {
+            color: #5a5c69;
+            font-size: 16px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 30px 20px;
+            }
+            
+            h2 {
+                font-size: 24px;
+            }
+            
+            .action-buttons {
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Student Dashboard</h2>
-        <p>To scan QR code, please open WeChat and follow the instructions.</p>
-        <a href="{% url 'apply_leave' %}">Apply for Leave</a>
-        <a href="{% url 'student_check_records' %}">View Attendance Records</a>
-        <a href="{% url 'check_whether_too_many_leave'%}">Check if too many leave</a>
-    </div>
+    <div class="dashboard-container">
+        <h2><i class="bi bi-person-circle"></i> 学生仪表盘</h2>
+        
+        <p class="welcome-text">
+            欢迎使用学生服务系统，请选择您需要的功能
+        </p>
+        
+        <div class="qr-instruction">
+            <i class="bi bi-qr-code-scan"></i>
+            <span>扫描二维码签到请打开微信，按照提示操作</span>
+        </div>
+        
+        <!-- 考勤相关功能组 -->
+        <div class="button-group">
+            <div class="button-group-title">考勤管理</div>
+            <div class="action-buttons">
+                <a href="{% url 'apply_leave' %}" class="btn-action btn-leave">
+                    <i class="bi bi-calendar-plus"></i> 申请请假
+                </a>
+                <a href="{% url 'student_check_records' %}" class="btn-action btn-records">
+                    <i class="bi bi-list-check"></i> 查看考勤记录
+                </a>
+            </div>
+        </div>
+        
+        <!-- 特别提醒功能组 -->
+        <div class="button-group">
+            <div class="button-group-title">特别提醒</div>
+            <div class="action-buttons">
+                <!-- 修改1：确保url标签正确 -->
+                <a href="{% url 'check_whether_too_many_leave' %}" class="btn-action btn-check" id="leaveCheckBtn">
+                    <i class="bi bi-exclamation-triangle"></i> 请假次数检查
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        !
+                    </span>
+                </a>
+        
+                <!-- 修改2：添加备用直接链接（如果url标签不工作） -->
+                <!-- 
+                <a href="/check-leave/" class="btn-action btn-check" id="leaveCheckBtn">
+                    <i class="bi bi-exclamation-triangle"></i> 请假次数检查
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                        !
+                    </span>
+                </a>
+                -->
+            </div>
+        </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 可选：添加JS来控制提醒红点的显示 -->
+    <script>
+        // 示例：如果有需要提醒的请假次数，显示红点
+        // 实际应用中可以从后端获取数据决定是否显示
+        document.addEventListener('DOMContentLoaded', function() {
+            // 模拟条件：如果有超过3次请假，显示提醒
+            // const leaveCount = 5; // 实际应从后端获取
+            // if (leaveCount > 3) {
+            //     document.getElementById('leaveCheckBtn').classList.add('has-alert');
+            // }
+        });
+    </script>
 </body>
 </html>

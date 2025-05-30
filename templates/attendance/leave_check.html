@@ -1,102 +1,344 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>请假次数检查</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #5a5c69;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
             margin: 0 auto;
-            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.05);
+            padding: 30px;
         }
+        
+        h1 {
+            color: #2c3e50;
+            font-weight: 700;
+            margin-bottom: 25px;
+            text-align: center;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, #4e73df 0%, #224abe 100%);
+            border-radius: 2px;
+        }
+        
         .search-box {
-            background-color: #f5f5f5;
-            padding: 20px;
-            border-radius: 5px;
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
             margin-bottom: 30px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #4e73df;
         }
-        table {
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-control {
+            border-radius: 8px;
+            padding: 12px 15px;
+            border: 1px solid #ced4da;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.15);
+        }
+        
+        .btn-search {
+            background-color: #4e73df;
+            border-color: #4e73df;
+            font-weight: 500;
+            padding: 12px 25px;
+            border-radius: 8px;
+            transition: all 0.3s;
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+            color: white;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
+        
+        .btn-search:hover {
+            background-color: #2e59d9;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(78, 115, 223, 0.3);
         }
-        th {
-            background-color: #f2f2f2;
+        
+        .alert {
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-left: 4px solid;
         }
-        .danger {
-            color: red;
-            font-weight: bold;
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left-color: #e74a3b;
         }
-        .warning {
-            color: orange;
+        
+        .alert-info {
+            background-color: #e7f1ff;
+            color: #0c63e4;
+            border-left-color: #4e73df;
         }
-        .safe {
-            color: green;
+        
+        .student-info {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
-        .error {
-            color: red;
-            padding: 10px;
-            background-color: #ffeeee;
-            border-radius: 4px;
+        
+        .student-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #e6f0fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .student-avatar i {
+            color: #4e73df;
+            font-size: 28px;
+        }
+        
+        .student-details h3 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        
+        .student-details p {
+            margin: 5px 0 0;
+            color: #6c757d;
+        }
+        
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .table {
+            margin-bottom: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        
+        .table thead th {
+            background-color: #4e73df;
+            color: white;
+            font-weight: 600;
+            border: none;
+            padding: 15px;
+        }
+        
+        .table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .table tbody tr:hover {
+            background-color: rgba(78, 115, 223, 0.05);
+        }
+        
+        .table td {
+            padding: 15px;
+            border-bottom: 1px solid #e3e6f0;
+            vertical-align: middle;
+        }
+        
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .badge-danger {
+            background-color: rgba(231, 74, 59, 0.1);
+            color: #e74a3b;
+        }
+        
+        .badge-warning {
+            background-color: rgba(246, 194, 62, 0.1);
+            color: #f6c23e;
+        }
+        
+        .badge-success {
+            background-color: rgba(28, 200, 138, 0.1);
+            color: #1cc88a;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 28px;
+            }
+            
+            .student-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .table thead {
+                display: none;
+            }
+            
+            .table tbody tr {
+                display: block;
+                margin-bottom: 20px;
+                border: 1px solid #e3e6f0;
+                border-radius: 8px;
+            }
+            
+            .table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border: none;
+                border-bottom: 1px solid #e3e6f0;
+            }
+            
+            .table td:before {
+                content: attr(data-label);
+                font-weight: bold;
+                margin-right: 15px;
+                color: #5a5c69;
+            }
+            
+            .table td:last-child {
+                border-bottom: none;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>请假次数检查</h1>
-
-    <div class="search-box">
-        <form method="post">
-            {% csrf_token %}
-            <label for="student_id">输入学号：</label>
-            <input type="text" id="student_id" name="student_id" required>
-            <button type="submit">查询</button>
-        </form>
+    <div class="container">
+        <h1><i class="bi bi-exclamation-triangle"></i> 请假次数检查</h1>
+        
+        <div class="search-box">
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="student_id">
+                        <i class="bi bi-person-badge"></i> 输入学号
+                    </label>
+                    <input type="text" class="form-control" id="student_id" name="student_id" 
+                           placeholder="请输入您的学号" required>
+                </div>
+                <button type="submit" class="btn btn-search">
+                    <i class="bi bi-search"></i> 查询请假情况
+                </button>
+            </form>
+        </div>
+        
+        {% if searched %}
+            {% if error %}
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+                </div>
+            {% else %}
+                <div class="student-info">
+                    <div class="student-avatar">
+                        <i class="bi bi-person-circle"></i>
+                    </div>
+                    <div class="student-details">
+                        <h3>{{ student.name }}</h3>
+                        <p>学号: {{ student.student_id }}</p>
+                    </div>
+                </div>
+                
+                {% if leave_stats %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>课程代码</th>
+                                    <th>课程名称</th>
+                                    <th>请假次数</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in leave_stats %}
+                                <tr>
+                                    <td data-label="课程代码">{{ stat.course__course_code }}</td>
+                                    <td data-label="课程名称">{{ stat.course__course_name }}</td>
+                                    <td data-label="请假次数">{{ stat.total_leaves }}</td>
+                                    <td data-label="状态">
+                                        <span class="status-badge {% if stat.is_dangerous %}badge-danger{% else %}badge-success{% endif %}">
+                                            {% if stat.is_dangerous %}
+                                                <i class="bi bi-exclamation-triangle-fill"></i> 危险！已请假{{ stat.total_leaves }}次
+                                            {% else %}
+                                                <i class="bi bi-check-circle-fill"></i> 安全
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle-fill"></i> 没有找到任何已批准的请假记录。
+                    </div>
+                {% endif %}
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle-fill"></i> 请输入学号查询您的请假情况。
+            </div>
+        {% endif %}
     </div>
 
-    {% if searched %}
-        {% if error %}
-            <div class="error">{{ error }}</div>
-        {% else %}
-            <h2>{{ student.name }} ({{ student.student_id }}) 的请假统计</h2>
-
-            {% if leave_stats %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>课程代码</th>
-                            <th>课程名称</th>
-                            <th>请假次数</th>
-                            <th>状态</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stat in leave_stats %}
-                        <tr>
-                            <td>{{ stat.course__course_code }}</td>
-                            <td>{{ stat.course__course_name }}</td>
-                            <td>{{ stat.total_leaves }}</td>
-                            <td class="{% if stat.is_dangerous %}danger{% else %}safe{% endif %}">
-                                {% if stat.is_dangerous %}
-                                    危险！您已请假{{ stat.total_leaves }}次
-                                {% else %}
-                                    安全
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>没有找到任何已批准的请假记录。</p>
-            {% endif %}
-        {% endif %}
-    {% else %}
-        <p>请输入学号查询您的请假情况。</p>
-    {% endif %}
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
