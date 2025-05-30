@@ -16,9 +16,6 @@
 [//]: # (5.Test)
 
 
-yxy
-6.请假次数过多通知
-
 [//]: # (7.管理员重新导入（管理员修改）   更新数据表student 学号+密码；  teacher  工号+密码    administor  管理号+密码)
 mysql中：先drop掉之前的wechat_db
 vscode中：在core/migrations下面的那里，除了__init__.py不要删除，别的如果有就都删掉
@@ -33,13 +30,18 @@ vscode中：python manage.py makemigrations，然后python manage.py migrate
 然后去mysql中检查：core_administrator,core_student,core_teacher,core_courses,core_enrollment是否有填写好对应的数据
 
 
-请假次数过多：学生点按钮，看自己是否为危险人物
-
-
 ！！！！！！！！！！！！！！
 （高并发）：架构设计的高并发：原本是每次学生签到都要提取数据库的表，此处是老师生成扫码界面就能预处理，实现了高并发
 考虑使用redis在签到那里直接加
 ！！！！！！！！！！！！！！
+
+
+现在对于请假次数过多的提醒：我们是选择自己身份是学生，点击进入查询是否请假次数过多按钮，然后还要再次输入学号
+这样子就无法做到按钮标红。并且这样子，学生可以查别的学生的请假次数过多记录，隔离性不好
+我们需要在做到用户认证之后，根据一开始填写的学号+密码，如果请假次数过多，那个按钮就会标红
+所以要处理用户认证
+
+
 
 
 管理员： 

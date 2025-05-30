@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.shortcuts import render
 
 #用print代替打断点
@@ -237,3 +238,41 @@ def student_check_records(request):
 
 def student_dashboard(request):
     return render(request, 'student_dashboard.html')
+
+
+def check_whether_too_many_leave(request):
+    if request.method == 'POST':
+        student_id = request.POST.get('student_id')
+
+        try:
+            student = Student.objects.get(student_id=student_id)
+
+            # 获取该学生已批准的请假记录，按课程分组统计
+            leave_stats = LeaveRequest.objects.filter(
+                student=student,
+                leave_status='approved'
+            ).values(
+                'course__course_code',
+                'course__course_name'
+            ).annotate(
+                total_leaves=Count('leave_id')
+            ).order_by('-total_leaves')
+
+            # 标记危险课程（请假>=3次）
+            for stat in leave_stats:
+                stat['is_dangerous'] = stat['total_leaves'] >=1
+
+            context = {
+                'student': student,
+                'leave_stats': leave_stats,
+                'searched': True
+            }
+            return render(request, 'attendance/leave_check.html', context)
+
+        except Student.DoesNotExist:
+            return render(request, 'attendance/leave_check.html', {
+                'error': '找不到该学号的学生',
+                'searched': True
+            })
+
+    return render(request, 'attendance/leave_check.html', {'searched': False})
