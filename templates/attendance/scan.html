@@ -1,16 +1,11 @@
-<!-- 只包含签到表单 -->
-<h2>课程签到</h2>
-<p>课程代码: {{ course_code }}</p>
-<p>剩余签到时间: {{ remaining_minutes }}分{{ remaining_seconds }}秒</p>
-
 <form method="post" action="{% url 'validate_identity' %}">
     {% csrf_token %}
     <input type="hidden" name="course_code" value="{{ course_code }}">
     <input type="hidden" name="timestamp" value="{{ timestamp }}">
-    <input type="hidden" name="limit_minutes" value="{{ limit_minutes }}">
+    <input type="hidden" name="limit" value="{{ limit }}">  <!-- 注意字段名 -->
 
-    <label>学号：
-        <input type="text" name="student_id" required autofocus>
-    </label>
+    <label>学号：</label>
+    <input type="text" name="student_id" required>
+
     <button type="submit">提交签到</button>
 </form>

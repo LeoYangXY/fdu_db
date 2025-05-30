@@ -11,7 +11,7 @@
 
     <!-- 操作按钮 -->
     <div class="actions">
-        <a href="{% url 'scan_qrcode_with_params' course_code=course.code timestamp=timestamp limit=limit %}" class="btn">
+        <a href="{% url 'scan_qrcode_with_params' course_code=course_code timestamp=timestamp limit=limit %}" class="btn">
             重新扫码
         </a>
         <a href="/" class="btn">返回首页</a>

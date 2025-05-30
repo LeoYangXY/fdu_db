@@ -30,167 +30,102 @@ from django.utils import timezone
 
 
 def scan_qrcode_with_params(request, course_code, timestamp, limit):
+    """仅展示签到页面，不再初始化数据"""
     try:
-        # 参数类型转换
+        # 参数有效性验证
+        if not all([course_code.strip(), timestamp, limit]):
+            raise ValueError("课程代码、时间戳和有效期不能为空")
+
+        # 类型转换和计算
         timestamp_int = int(timestamp)
-        limit_minutes = int(limit)
-        current_time = timezone.now()
-        today = current_time.date()
-        # 获取课程对象
-        course = Course.objects.get(course_code=course_code)
-        # 获取所有选课学生（X）
-        enrollments = Enrollment.objects.filter(course=course)
-        student_ids = enrollments.values_list('student_id', flat=True)
-        students = Student.objects.filter(student_id__in=student_ids)
-        # 获取已批准请假的学生（Y）
-        approved_leave_student_ids = LeaveRequest.objects.filter(
-            course=course,
-            leave_date=today,
-            leave_status='approved'
-        ).values_list('student_id', flat=True)
-        # 4. 计算缺勤学生（X - Y）
-        absent_students = students.exclude(
-            student_id__in=approved_leave_student_ids
-        )
-        # 批量处理考勤记录
-        with transaction.atomic():
-            # 批量插入/更新请假学生记录
-            for student_id in approved_leave_student_ids:
-                Attendance.objects.update_or_create(
-                    student_id=student_id,
-                    course=course,
-                    date=today,
-                    defaults={'status': 'approved_leave'}
-                )
-
-            # 批量插入/更新缺勤学生记录
-            for student in absent_students:
-                Attendance.objects.update_or_create(
-                    student=student,
-                    course=course,
-                    date=today,
-                    defaults={'status': 'absent'}
-                )
-
-        # 计算剩余时间
-        remaining_seconds = max(0, timestamp_int + limit_minutes * 60 - int(time.time()))
-        remaining_minutes = remaining_seconds // 60
-        remaining_seconds %= 60
+        limit_int = int(limit)
+        remaining = timestamp_int + limit_int * 60 - int(time.time())
 
         return render(request, 'attendance/scan.html', {
             'course_code': course_code,
-            'timestamp': timestamp_int,
-            'limit_minutes': limit_minutes,
-            'remaining': remaining_seconds,
-            'remaining_minutes': remaining_minutes,
-            'remaining_seconds': remaining_seconds
+            'timestamp': timestamp,  # 传递给模板用于后续POST
+            'limit': limit,  # 传递给模板用于后续POST
+            'remaining_seconds': max(0, remaining)
         })
-    except Course.DoesNotExist:
-        return render(request, 'attendance/error.html', {'error': '课程不存在'})
+
+    except ValueError as e:
+        return render(request, 'attendance/error.html', {
+            'error': f"参数错误: {str(e)}",
+            'course_code': course_code,
+            'timestamp': timestamp,
+            'limit': limit
+        })
     except Exception as e:
-        return render(request, 'attendance/error.html', {'error': f'参数错误：{str(e)}'})
-
-
-# 开始
-#   ↓
-# 教师生成二维码（调用 scan_qrcode_with_params 视图）
-#   ↓
-# 获取课程对象和当前日期
-#   ↓
-# 获取所有选课学生（X）
-#   ↓
-# 筛选出当天已批准请假的学生（Y）
-#   ↓
-# 批量插入/更新 Attendance 记录：
-#      Y → approved_leave
-#      X - Y → absent
-#   ↓
-# 跳转到扫码页面（scan.html）
-#   ↓
-# 学生扫码进入 validate_identity 视图
-#   ↓
-# 检查是否已有 approved_leave 或 present 记录？
-#     ↓ 是 → 阻止签到
-#     ↓ 否 → 检查是否超时？
-#         ↓ 是 → 无变化（保持 absent）
-#         ↓ 否 → 更新为 present
-
+        return render(request, 'attendance/error.html', {
+            'error': f"系统错误: {str(e)}",
+            'course_code': course_code,
+            'timestamp': timestamp,
+            'limit': limit
+        })
 
 
 def validate_identity(request):
     if request.method == 'POST':
-        student_id = request.POST.get('student_id')
-        course_code = request.POST.get('course_code')
-        timestamp = request.POST.get('timestamp')
-        limit_minutes = request.POST.get('limit_minutes')
+        # 初始化参数（防止后续引用未定义变量）
+        student_id = request.POST.get('student_id', '').strip()
+        course_code = request.POST.get('course_code', '').strip()
+        timestamp = request.POST.get('timestamp', '').strip()
+        limit = request.POST.get('limit', '').strip()  # 确保与模板字段名一致
 
         try:
-            student = Student.objects.get(student_id=student_id)
-            course = Course.objects.get(course_code=course_code)
-            print(student)
-            print(course)
+            # 参数基础验证
+            if not all([student_id, course_code, timestamp, limit]):
+                raise ValueError("所有参数必须填写")
+
             # 类型转换
-            try:
-                timestamp_int = int(timestamp)
-                limit_int = int(limit_minutes)
-            except ValueError:
-                raise ValueError("时间参数格式错误")
-            current_time = timezone.now()
-            today = current_time.date()
-            deadline = timezone.make_aware(datetime.fromtimestamp(timestamp_int)) + timedelta(minutes=limit_int)
+            timestamp_int = int(timestamp)
+            limit_int = int(limit)
 
-            if current_time > deadline:
-                messages.error(request, "超出签到时间限制")
-                return render(request, 'attendance/error.html', {
-                    'error': '超出签到时间，签到系统已关闭'
-                })
+            # 时效性验证
+            if time.time() > timestamp_int + limit_int * 60:
+                raise ValueError("签到已超时")
 
-            #============此处需要修改，为什么重复签到或者被批假的还是会显示签到成功了，existing_record弄不出来
-
-            # 检查是否已有 approved_leave 或 present 记录
-            existing_record = Attendance.objects.filter(
-                student=student,
-                course=course,
-                date=today,
-                status__in=['approved_leave', 'present']
-            ).first()
-            print(1)
-            if existing_record:
-                if existing_record.status == 'approved_leave':
-                    messages.warning(request, "您已成功请假，无需签到")
-                    return redirect('attendance_error')  # 跳转到错误页
-                elif existing_record.status == 'present':
-                    messages.info(request, "您已签到成功，无需重复签到")
-                    return redirect('attendance_error')  # 跳转到错误页
-            print(2)
-
-            # 更新为出席
-            Attendance.objects.update_or_create(
-                student=student,
-                course=course,
-                date=today,
-                defaults={
-                    'status': 'present',
-                    'scan_time': current_time,
-                }
+            # 查询记录
+            today = timezone.now().date()
+            record = Attendance.objects.get(
+                student__student_id=student_id,
+                course__course_code=course_code,
+                date=today
             )
 
+            # 状态检查
+            if record.status == 'approved_leave':
+                raise PermissionError("已批准请假，无需签到")
+            if record.status == 'present':
+                raise PermissionError("请勿重复签到")
+
+            # 更新状态
+            record.status = 'present'
+            record.scan_time = timezone.now()
+            record.save()
+
+            messages.success(request, "签到成功！")
             return redirect('confirm_attendance')
 
-        #学号不存在的报错也没有解决
-        except Student.DoesNotExist:
-            messages.error(request, "学号不存在")
-        except Course.DoesNotExist:
-            messages.error(request, "课程不存在")
+        except Attendance.DoesNotExist:
+            messages.error(request, "未找到考勤记录，请联系教师")
         except Exception as e:
-            messages.error(request, f"签到失败：{str(e)}")
+            messages.error(request, str(e))
 
-        return redirect('scan_qrcode_with_params', course_code=course_code, timestamp=timestamp, limit=limit_minutes)
-
-    else:
+        # 错误时传递必要参数到模板
         return render(request, 'attendance/error.html', {
-            'error': '请求方法不支持，请通过二维码扫码进入'
+            'course_code': course_code,
+            'timestamp': timestamp,
+            'limit': limit
         })
+
+    # 非POST请求处理
+    messages.error(request, "无效请求方法")
+    return render(request, 'attendance/error.html', {
+        'course_code': '',
+        'timestamp': '',
+        'limit': ''
+    })
 
 def confirm_attendance(request):
     """最简单的确认页面"""
