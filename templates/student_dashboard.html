@@ -147,26 +147,26 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <h2><i class="bi bi-person-circle"></i> Student Dashboard</h2>
+        <h2><i class="bi bi-person-circle"></i>学生仪表盘</h2>
 
         <p class="welcome-text">
-            Welcome to Student Services System, please select the function you need
+            欢迎来到学生服务系统, 请选择你需要的功能
         </p>
 
         <div class="qr-instruction">
             <i class="bi bi-qr-code-scan"></i>
-            <span>To scan QR code, please open WeChat and follow the instructions</span>
+            <span>请打开微信按照指示扫码</span>
         </div>
 
         <div class="action-buttons">
             <a href="{% url 'apply_leave' %}" class="btn-action btn-leave">
-                <i class="bi bi-calendar-plus"></i> Apply for Leave
+                <i class="bi bi-calendar-plus"></i> 申请请假
             </a>
             <a href="{% url 'student_check_records' %}" class="btn-action btn-records">
-                <i class="bi bi-list-check"></i> View Attendance Records
+                <i class="bi bi-list-check"></i> 查看请假次数
             </a>
             <a href="{% url 'check_whether_too_many_leave'%}" class="btn-action btn-records">
-                <i class="bi bi-list-check"></i> View Attendance Records
+                <i class="bi bi-list-check"></i> 请假次数过多通知
             </a>
         </div>
     </div>
