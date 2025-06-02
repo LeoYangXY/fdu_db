@@ -93,3 +93,8 @@ print(full_url)
 
 在setting中配置：ALLOWED_HOSTS = ['192.168.31.163', 'localhost', '127.0.0.1']#果你需要通过本地IP（如 10.230.32.73）或其他设备访问，则必须添加对应的IP或域名到 ALLOWED_HOSTS，否则会报错 Invalid HTTP_HOST header
 手机浏览器访问：http://[电脑本地IP]:8000/...（生成二维码的页面）
+
+ngork内网穿透：
+先打开ngork，映射到外网ip
+然后pycharm中启动manage.py
+然后才能进行扫码
