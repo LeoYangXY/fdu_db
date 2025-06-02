@@ -84,6 +84,7 @@ print(full_url)
 去替代
 
 
+
 确保手机和电脑在同一局域网
 获取电脑的本地IP地址（Windows: ipconfig / Mac/Linux: ifconfig）
 临时允许所有网络访问Django： python manage.py runserver 0.0.0.0:8000  此时电脑也只能使用真实ip进行访问
