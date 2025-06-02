@@ -58,13 +58,13 @@ from core.models import Course
 #     ↓ 否 → 检查是否超时？
 #         ↓ 是 → 无变化（保持 absent）
 #         ↓ 否 → 更新为 present
-
-
 from django.db import transaction
 from django.utils import timezone
 import qrcode
 from io import BytesIO
 from django.http import HttpResponse
+
+
 def generate_course_qrcode(request):
     if request.method == 'POST':
         course_code = request.POST.get('course_code')
@@ -118,6 +118,13 @@ def generate_course_qrcode(request):
             qr_url = request.build_absolute_uri(
                 f"/student/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
             )
+            #根据当前项目所处在的ip地址，生成一个完整的url，那么其实前缀就是本机的ip地址。
+            #就是将相对路径（如 /student/scan/...）转换为 完整 URL，格式为： http://<当前服务器的IP或域名>:<端口>/student/scan/...
+            #而由于我们的项目使用runserver那个命令简单启动，因此是跑在192.168.xx.xx这个ip下面的
+            #而192.168.x.x  10.x.x.x  172.16.x.x是私有IP（局域网专用），具有以下特性：
+            #仅限同一局域网内访问（如连接同一路由器 / 交换机的设备）
+            #公网无法直接访问（互联网上的设备无法通过私有 IP 找到你的电脑）
+            #然后处于同一局域网的手机对其进行扫码，就可以跳转到这个完整的url（如果不是同一局域网，那么就无法跳转）
             qr_img = qrcode.make(qr_url)
             buffer = BytesIO()
             qr_img.save(buffer, format="PNG")

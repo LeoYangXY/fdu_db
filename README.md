@@ -82,3 +82,13 @@ url = reverse('scan_qrcode_with_params', args=[course_code, timestamp, limit])
 full_url = f"http://127.0.0.1:8000{url}"
 print(full_url)
 去替代
+
+
+确保手机和电脑在同一局域网
+获取电脑的本地IP地址（Windows: ipconfig / Mac/Linux: ifconfig）
+临时允许所有网络访问Django： python manage.py runserver 0.0.0.0:8000  此时电脑也只能使用真实ip进行访问
+此命令让Django监听所有网络接口，但实际访问仍需通过电脑的本地IP（如 192.168.31.163）。
+本地IP是私有地址，只能在局域网内访问（即同一WiFi下的设备才能解析此IP）。
+
+在setting中配置：ALLOWED_HOSTS = ['192.168.31.163', 'localhost', '127.0.0.1']#果你需要通过本地IP（如 10.230.32.73）或其他设备访问，则必须添加对应的IP或域名到 ALLOWED_HOSTS，否则会报错 Invalid HTTP_HOST header
+手机浏览器访问：http://[电脑本地IP]:8000/...（生成二维码的页面）
