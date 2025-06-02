@@ -116,7 +116,7 @@ def generate_course_qrcode(request):
 
             # 生成二维码（带时间戳）
             qr_url = request.build_absolute_uri(
-                f"/attendance/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
+                f"/student/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
             )
             qr_img = qrcode.make(qr_url)
             buffer = BytesIO()
