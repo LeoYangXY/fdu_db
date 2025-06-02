@@ -21,7 +21,7 @@ from django.utils import timezone
 
 # Create your views here.
 import time
-
+import requests
 from django.http import HttpResponse
 from django.shortcuts import render
 from urllib.parse import quote
@@ -63,6 +63,26 @@ from django.utils import timezone
 import qrcode
 from io import BytesIO
 from django.http import HttpResponse
+
+def get_ngrok_public_url():
+    """
+    动态获取当前 Ngrok 的公网 URL
+    返回格式: "https://xxxx-xxx-xxx-xxx-xxx.ngrok.io" 或 None（失败时）
+    """
+    try:
+        response = requests.get("http://127.0.0.1:4042/api/tunnels", timeout=3)
+        #此处是4042端口，这和我们django的8000端口的关系是：
+        #本地 Django 项目运行在8000端口（通过 python manage.py runserver 0.0.0.0:8000 启动）
+        #4042端口是Ngrok的管理后台端口，用于提供 API 查询公网 URL（如 https://xxx.ngrok-free.app）
+        if response.status_code == 200:
+            print(f"获取 Ngrok URL 成功")
+            tunnels = response.json()
+            for tunnel in tunnels['tunnels']:
+                if tunnel['proto'] == 'https':
+                    return tunnel['public_url']
+    except Exception as e:
+        print(f"获取 Ngrok URL 失败: {str(e)}")
+    return None
 
 
 def generate_course_qrcode(request):
@@ -115,9 +135,19 @@ def generate_course_qrcode(request):
                         attendance.save()
 
             # 生成二维码（带时间戳）
-            qr_url = request.build_absolute_uri(
-                f"/student/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
-            )
+            # 动态获取 Ngrok 公网 URL 或 fallback 到本地
+            ngrok_url = get_ngrok_public_url()
+            if ngrok_url:
+                # 使用 Ngrok 公网 URL
+                qr_url = f"{ngrok_url}/student/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
+                print(qr_url)
+            else:
+                # Fallback: 使用本地地址（仅限同一局域网）
+                qr_url = request.build_absolute_uri(
+                    f"/student/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
+                )
+                print(qr_url)
+                print("警告: 使用本地地址生成二维码，外网设备无法访问")
             #根据当前项目所处在的ip地址，生成一个完整的url，那么其实前缀就是本机的ip地址。
             #就是将相对路径（如 /student/scan/...）转换为 完整 URL，格式为： http://<当前服务器的IP或域名>:<端口>/student/scan/...
             #而由于我们的项目使用runserver那个命令简单启动，因此是跑在192.168.xx.xx这个ip下面的

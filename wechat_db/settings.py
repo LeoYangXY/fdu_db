@@ -25,7 +25,8 @@ SECRET_KEY = "django-insecure-w0lstlr2@^%b@0ax2ku-5q((w%bflr1siwk0h5xqnhnrvpr*f7
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.31.163', 'localhost', '127.0.0.1']#果你需要通过本地IP（如 10.230.32.73）或其他设备访问，则必须添加对应的IP或域名到 ALLOWED_HOSTS，否则会报错 Invalid HTTP_HOST header
+ALLOWED_HOSTS = ['*']#直接开放所有ip均可访问
+# ALLOWED_HOSTS = ['192.168.31.163', 'localhost', '127.0.0.1']#果你需要通过本地IP（如 10.230.32.73）或其他设备访问，则必须添加对应的IP或域名到 ALLOWED_HOSTS，否则会报错 Invalid HTTP_HOST header
 
 
 # Application definition
