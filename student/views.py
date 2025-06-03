@@ -9,6 +9,8 @@ from django.core.cache import cache
 # Create your views here.
 import logging
 
+from django.urls import reverse
+
 logger = logging.getLogger(__name__)  # 确保这行在视图函数之前
 from django.shortcuts import render
 from django.shortcuts import render, redirect
@@ -29,77 +31,80 @@ from django.utils import timezone
 #用print代替打断点
 #看报错的具体信息，而不是直接喂给ai，不然可能会很麻烦
 
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required
+import time
+
 
 def scan_qrcode_with_params(request, course_code, timestamp, limit):
-    """仅展示签到页面，不再初始化数据"""
-    try:
-        # 参数有效性验证
-        if not all([course_code.strip(), timestamp, limit]):
-            raise ValueError("课程代码、时间戳和有效期不能为空")
+    """仅允许已登录学生访问签到页面"""
+    # 检查session中的登录标记
+    if not request.session.get('is_logged_in') or not request.session.get('student_id'):
+        login_url = f"{reverse('login')}?next={request.path}"
+        return redirect(login_url)
 
-        # 类型转换和计算
+    try:
+        # 从session获取学生信息
+        student_id = request.session['student_id']
+        student = Student.objects.get(student_id=student_id)
+
+        # 参数处理
         timestamp_int = int(timestamp)
         limit_int = int(limit)
         remaining = timestamp_int + limit_int * 60 - int(time.time())
 
         return render(request, 'attendance/scan.html', {
             'course_code': course_code,
-            'timestamp': timestamp,  # 传递给模板用于后续POST
-            'limit': limit,  # 传递给模板用于后续POST
-            'remaining_seconds': max(0, remaining)
-        })
-
-    except ValueError as e:
-        return render(request, 'attendance/error.html', {
-            'error': f"参数错误: {str(e)}",
-            'course_code': course_code,
             'timestamp': timestamp,
-            'limit': limit
+            'limit': limit,
+            'remaining_seconds': max(0, remaining),
+            'student_id': student_id,
+            'student_name': student.name  # 添加学生姓名
         })
     except Exception as e:
         return render(request, 'attendance/error.html', {
-            'error': f"系统错误: {str(e)}",
-            'course_code': course_code,
-            'timestamp': timestamp,
-            'limit': limit
+            'error': str(e),
+            'redirect_url': reverse('login') + f'?next={request.path}'
         })
-
-
-from django.core.cache import cache
 
 
 def validate_identity(request):
     if request.method == 'POST':
-        # 初始化参数（防止后续引用未定义变量）
-        student_id = request.POST.get('student_id', '').strip()
-        course_code = request.POST.get('course_code', '').strip()
-        timestamp = request.POST.get('timestamp', '').strip()
-        limit = request.POST.get('limit', '').strip()
+        # 从session获取学生信息（与scan_qrcode_with_params保持一致）
+        if not request.session.get('is_logged_in') or not request.session.get('student_id'):
+            messages.error(request, "请先登录")
+            return redirect('login')
 
         try:
+            student_id = request.session['student_id']
+            current_student = Student.objects.get(student_id=student_id)
+
+            course_code = request.POST.get('course_code', '').strip()
+            timestamp = request.POST.get('timestamp', '').strip()
+            limit = request.POST.get('limit', '').strip()
+
             # 参数基础验证
-            if not all([student_id, course_code, timestamp, limit]):
+            if not all([course_code, timestamp, limit]):
                 raise ValueError("所有参数必须填写")
 
-            # 类型转换
+            # 时效性验证
             timestamp_int = int(timestamp)
             limit_int = int(limit)
-
-            # 时效性验证
             if time.time() > timestamp_int + limit_int * 60:
                 raise ValueError("签到已超时")
 
-            # 生成缓存键（唯一标识这个学生的签到）
+            # 检查是否已签到（防止重复签到）
             cache_key = f"attendance:{course_code}:{student_id}:{timezone.now().date().isoformat()}"
-
-            # 检查缓存是否存在（防止重复签到）
             if cache.get(cache_key):
                 raise PermissionError("请勿重复签到")
 
-            # 查询记录
+            # 查询考勤记录
             today = timezone.now().date()
             record = Attendance.objects.get(
-                student__student_id=student_id,
+                student=current_student,
                 course__course_code=course_code,
                 date=today
             )
@@ -115,7 +120,7 @@ def validate_identity(request):
             record.scan_time = timezone.now()
             record.save()
 
-            # 将签到成功状态写入缓存（有效期24小时）
+            # 写入缓存
             cache.set(cache_key, 'present', timeout=24 * 60 * 60)
 
             messages.success(request, "签到成功！")
@@ -126,20 +131,14 @@ def validate_identity(request):
         except Exception as e:
             messages.error(request, str(e))
 
-        # 错误时传递必要参数到模板
         return render(request, 'attendance/error.html', {
             'course_code': course_code,
             'timestamp': timestamp,
             'limit': limit
         })
 
-    # 非POST请求处理
     messages.error(request, "无效请求方法")
-    return render(request, 'attendance/error.html', {
-        'course_code': '',
-        'timestamp': '',
-        'limit': ''
-    })
+    return redirect('login')
 
 def confirm_attendance(request):
     """最简单的确认页面"""
