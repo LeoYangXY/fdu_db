@@ -96,5 +96,15 @@ print(full_url)
 
 ngork内网穿透：
 先打开ngork，映射到外网ip
-然后pycharm中启动manage.py
+
+具体：
+配置密钥：双击打开ngrok，执行如下命令： ngrok authtoken 2Yh...（Your Authtoken）
+映射端口：ngrok http 80
+
+然后pycharm中启动manage.py:python manage.py runserver 0.0.0.0:8000
 然后才能进行扫码
+
+当然，要从终端的ngrok那里看到底使用的是ngrok的哪个端口，看清楚是40还是42，然后在teacher的view那里需要修改
+
+
+使用：python manage.py runserver_with_ip才能得到初始化界面

@@ -70,7 +70,7 @@ def get_ngrok_public_url():
     返回格式: "https://xxxx-xxx-xxx-xxx-xxx.ngrok.io" 或 None（失败时）
     """
     try:
-        response = requests.get("http://127.0.0.1:4042/api/tunnels", timeout=3)
+        response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=3)
         #此处是4042端口，这和我们django的8000端口的关系是：
         #本地 Django 项目运行在8000端口（通过 python manage.py runserver 0.0.0.0:8000 启动）
         #4042端口是Ngrok的管理后台端口，用于提供 API 查询公网 URL（如 https://xxx.ngrok-free.app）
@@ -88,7 +88,7 @@ def get_ngrok_public_url():
 def generate_course_qrcode(request):
     if request.method == 'POST':
         course_code = request.POST.get('course_code')
-        limit_minutes = int(request.POST.get('limit', '30'))
+        limit_minutes = int(request.POST.get('limit', '300'))
 
         try:
             # 获取课程对象
