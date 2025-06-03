@@ -9,14 +9,7 @@ class Student(models.Model):
     major = models.CharField(max_length=50)
     gender = models.CharField(max_length=1, choices=[('M', 'Male'), ('F', 'Female')])
     wechat_openid = models.CharField(max_length=50, unique=True, blank=True, null=True)
-    account = models.CharField(max_length=50, unique=True, verbose_name="账号")
-    password = models.CharField(max_length=128, verbose_name="密码")  # 128 is the length of hashed password
-
-    def set_password(self, raw_password):
-        self.password = make_password(raw_password)
-
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.password)
+    password = models.CharField(max_length=128, verbose_name="密码")  # 存储明文密码
 
     class Meta:
         verbose_name = "学生"
@@ -28,14 +21,7 @@ class Teacher(models.Model):
     name = models.CharField(max_length=50)
     department = models.CharField(max_length=50)
     contact = models.CharField(max_length=50, blank=True, null=True)
-    account = models.CharField(max_length=50, unique=True, verbose_name="账号")
-    password = models.CharField(max_length=128, verbose_name="密码")
-
-    def set_password(self, raw_password):
-        self.password = make_password(raw_password)
-
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.password)
+    password = models.CharField(max_length=128, verbose_name="密码")  # 存储明文密码
 
     class Meta:
         verbose_name = "教师"
@@ -47,18 +33,12 @@ class Administrator(models.Model):
     name = models.CharField(max_length=50)
     department = models.CharField(max_length=50)
     contact = models.CharField(max_length=50, blank=True, null=True)
-    account = models.CharField(max_length=50, unique=True, verbose_name="账号")
-    password = models.CharField(max_length=128, verbose_name="密码")
-
-    def set_password(self, raw_password):
-        self.password = make_password(raw_password)
-
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.password)
+    password = models.CharField(max_length=128, verbose_name="密码")  # 存储明文密码
 
     class Meta:
         verbose_name = "管理员"
         verbose_name_plural = "管理员"
+
 
 class Course(models.Model):
     course_code = models.CharField(max_length=20, primary_key=True)

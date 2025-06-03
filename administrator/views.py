@@ -48,14 +48,15 @@ def admin_import(request):
     return render(request, 'users/admin_import.html')
 
 
+
 def import_students(sheet):
     count = 0
     for row in sheet.iter_rows(min_row=2, values_only=True):
         if not row[0]:  # 跳过空行
             continue
 
-        # 更新后的字段顺序
-        student_id, name, department, major, gender, wechat_openid, account, password = row[:8]
+        # 更新后的字段顺序（移除了account）
+        student_id, name, department, major, gender, wechat_openid, password = row[:7]
 
         # 创建或更新学生记录
         student, created = Student.objects.update_or_create(
@@ -66,13 +67,9 @@ def import_students(sheet):
                 'major': major,
                 'gender': gender,
                 'wechat_openid': wechat_openid,
-                'account': account
+                'password': password  # 直接存储明文密码
             }
         )
-
-        # 设置密码（会自动哈希）
-        student.set_password(password)
-        student.save()
 
         count += 1
     return count
@@ -84,8 +81,8 @@ def import_teachers(sheet):
         if not row[0]:
             continue
 
-        # 更新后的字段顺序
-        teacher_id, name, department, contact, account, password = row[:6]
+        # 更新后的字段顺序（移除了account）
+        teacher_id, name, department, contact, password = row[:5]
 
         # 创建或更新教师记录
         teacher, created = Teacher.objects.update_or_create(
@@ -94,13 +91,9 @@ def import_teachers(sheet):
                 'name': name,
                 'department': department,
                 'contact': contact,
-                'account': account
+                'password': password  # 直接存储明文密码
             }
         )
-
-        # 设置密码
-        teacher.set_password(password)
-        teacher.save()
 
         count += 1
     return count
@@ -153,14 +146,16 @@ def import_enrollments(sheet):
         )
         count += 1
     return count
+
+
 def download_template(request, data_type):
     wb = openpyxl.Workbook()
     ws = wb.active
 
     if data_type == 'student':
-        ws.append(['学号', '姓名', '院系', '专业', '性别(M/F)', '微信openid', '账号', '初始密码'])
+        ws.append(['学号', '姓名', '院系', '专业', '性别(M/F)', '微信openid', '密码'])  # 移除了账号
     elif data_type == 'teacher':
-        ws.append(['工号', '姓名', '院系', '联系方式', '账号', '初始密码'])
+        ws.append(['工号', '姓名', '院系', '联系方式', '密码'])  # 移除了账号
     elif data_type == 'course':
         ws.append(['课程代码', '课程名称', '开课院系', '教师工号', '上课时间'])
     elif data_type == 'enrollment':
@@ -171,7 +166,6 @@ def download_template(request, data_type):
     wb.save(response)
 
     return response
-
 
 def admin_dashboard(request):
     return render(request, 'admin_dashboard.html')

@@ -16,8 +16,7 @@ admin, created = Administrator.objects.get_or_create(
     defaults={
         'name': '系统管理员',
         'department': 'IT部',
-        'account': 'admin',
-        'password': make_password('admin123')  # 自动加密
+        'password':'admin001',
     }
 )
 
