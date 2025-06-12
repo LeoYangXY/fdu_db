@@ -148,31 +148,39 @@ def confirm_attendance(request):
     return render(request, 'attendance/confirm.html')
 
 
-
-
 def apply_leave(request):
-    """学生请假申请（整合提交功能）"""
+    """学生请假申请（使用session中的学生信息）"""
+    # 手动检查登录状态
+    if not request.session.get('is_logged_in'):
+        return redirect(f'/login/?next={request.path}')
+
+    # 获取学生信息
+    student_id = request.session.get('student_id')
+    if not student_id:
+        return redirect('/login/')
+
+    try:
+        student = Student.objects.get(student_id=student_id)
+    except Student.DoesNotExist:
+        return redirect('/login/')
+
     if request.method == 'POST':
-        # 获取表单数据
-        student_id = request.POST.get('student_id')
         course_code = request.POST.get('course_code')
         leave_date_str = request.POST.get('leave_date')
         reason = request.POST.get('reason')
 
         try:
-            # 验证学生和课程
-            student = Student.objects.get(student_id=student_id)
             course = Course.objects.get(course_code=course_code)
-            teacher = course.teacher  # 从课程获取教师
+            teacher = course.teacher
 
-            # 将字符串转换为日期对象
+            # 日期转换
             try:
                 leave_date = datetime.strptime(leave_date_str, '%Y-%m-%d').date()
             except ValueError:
                 messages.error(request, "日期格式不正确，请使用YYYY-MM-DD格式")
                 return redirect('apply_leave')
 
-            # 检查是否已经存在相同的请假申请
+            # 检查是否已存在请假申请
             existing_leave = LeaveRequest.objects.filter(
                 student=student,
                 course=course,
@@ -200,8 +208,6 @@ def apply_leave(request):
             messages.success(request, "请假申请已提交，等待老师审批")
             return redirect('apply_leave')
 
-        except Student.DoesNotExist:
-            messages.error(request, "学号不存在")
         except Course.DoesNotExist:
             messages.error(request, "课程代码不存在")
         except IntegrityError:
@@ -209,16 +215,32 @@ def apply_leave(request):
         except Exception as e:
             messages.error(request, f"提交失败: {str(e)}")
 
-    return render(request, 'attendance/apply_leave.html')
+    # 自动填充学生信息到模板
+    return render(request, 'attendance/apply_leave.html', {
+        'student': student
+    })
 
-#GET方法的时候，是到check_records这个网页；POST方法的时候，是到record_list这个网页
+
 def student_check_records(request):
+    """学生查看自己的考勤和请假记录"""
+    # 手动检查登录状态
+    if not request.session.get('is_logged_in'):
+        return redirect(f'/login/?next={request.path}')
+
+    # 获取学生信息
+    student_id = request.session.get('student_id')
+    if not student_id:
+        return redirect('/login/')
+
+    try:
+        student = Student.objects.get(student_id=student_id)
+    except Student.DoesNotExist:
+        return redirect('/login/')
+
     if request.method == 'POST':
-        student_id = request.POST.get('student_id')
         course_code = request.POST.get('course_code')
 
         try:
-            student = Student.objects.get(student_id=student_id)
             course = Course.objects.get(course_code=course_code)
 
             # 获取考勤记录（按日期倒序）
@@ -241,7 +263,7 @@ def student_check_records(request):
                 'approved_leave': attendance_records.filter(status='approved_leave').count(),
             }
 
-            # 统计请假状态（使用leave_status字段）
+            # 统计请假状态
             leave_stats = {
                 'total': leave_records.count(),
                 'approved': leave_records.filter(leave_status='approved').count(),
@@ -258,51 +280,68 @@ def student_check_records(request):
                 'leave_stats': leave_stats
             })
 
-        except Student.DoesNotExist:
-            messages.error(request, "学号不存在")
         except Course.DoesNotExist:
             messages.error(request, "课程代码不存在")
 
-    return render(request, 'attendance/student_check_records.html')
-
-
-def student_dashboard(request):
-    return render(request, 'student_dashboard.html')
+    # 自动填充学生信息
+    return render(request, 'attendance/student_check_records.html', {
+        'student': student
+    })
 
 
 def check_whether_too_many_leave(request):
-    if request.method == 'POST':
-        student_id = request.POST.get('student_id')
+    """学生检查自己的请假次数"""
+    # 手动检查登录状态
+    if not request.session.get('is_logged_in'):
+        return redirect(f'/login/?next={request.path}')
 
-        try:
-            student = Student.objects.get(student_id=student_id)
+    # 获取学生信息
+    student_id = request.session.get('student_id')
+    if not student_id:
+        return redirect('/login/')
 
-            # 获取该学生已批准的请假记录，按课程分组统计
-            leave_stats = LeaveRequest.objects.filter(
-                student=student,
-                leave_status='approved'
-            ).values(
-                'course__course_code',
-                'course__course_name'
-            ).annotate(
-                total_leaves=Count('leave_id')
-            ).order_by('-total_leaves')
+    try:
+        student = Student.objects.get(student_id=student_id)
+    except Student.DoesNotExist:
+        return redirect('/login/')
 
-            # 标记危险课程（请假>=3次）
-            for stat in leave_stats:
-                stat['is_dangerous'] = stat['total_leaves'] >=1
+    # 获取该学生已批准的请假记录，按课程分组统计
+    leave_stats = LeaveRequest.objects.filter(
+        student=student,
+        leave_status='approved'
+    ).values(
+        'course__course_code',
+        'course__course_name'
+    ).annotate(
+        total_leaves=Count('leave_id')
+    ).order_by('-total_leaves')
 
-            context = {
-                'student': student,
-                'leave_stats': leave_stats,
-                'searched': True
-            }
-            return render(request, 'attendance/leave_check.html', context)
+    # 标记危险课程（请假>=3次）
+    for stat in leave_stats:
+        stat['is_dangerous'] = stat['total_leaves'] >= 1  # 根据您的原始代码，>=1就标记为危险
 
-        except Student.DoesNotExist:
-            return render(request, 'attendance/leave_check.html', {
-                'error': '找不到该学号的学生',
-                'searched': True
-            })
+    return render(request, 'attendance/leave_check.html', {
+        'student': student,
+        'leave_stats': leave_stats,
+        'searched': True  # 因为自动填充，所以总是显示结果
+    })
 
-    return render(request, 'attendance/leave_check.html', {'searched': False})
+
+
+def student_dashboard(request):
+    # 手动检查登录状态
+    if not request.session.get('is_logged_in'):
+        return redirect(f'/login/?next={request.path}')
+
+    # 获取学生信息
+    student_id = request.session.get('student_id')
+    if not student_id:
+        return redirect('/login/')
+
+    try:
+        student = Student.objects.get(student_id=student_id)
+        return render(request, 'student_dashboard.html', {
+            'student': student
+        })
+    except Student.DoesNotExist:
+        return redirect('/login/')
