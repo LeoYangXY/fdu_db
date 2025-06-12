@@ -10,6 +10,9 @@ from django.core.cache import cache
 import logging
 
 from django.urls import reverse
+from django.db import IntegrityError
+from django.utils import timezone
+from datetime import datetime
 
 logger = logging.getLogger(__name__)  # 确保这行在视图函数之前
 from django.shortcuts import render
@@ -146,7 +149,7 @@ def confirm_attendance(request):
 
 
 
-#学生只能请假一次（此处可以再优化）
+
 def apply_leave(request):
     """学生请假申请（整合提交功能）"""
     if request.method == 'POST':
@@ -169,15 +172,29 @@ def apply_leave(request):
                 messages.error(request, "日期格式不正确，请使用YYYY-MM-DD格式")
                 return redirect('apply_leave')
 
-            # 创建请假记录（leave_id会在save()时自动生成）
+            # 检查是否已经存在相同的请假申请
+            existing_leave = LeaveRequest.objects.filter(
+                student=student,
+                course=course,
+                leave_date=leave_date
+            ).first()
+
+            if existing_leave:
+                if existing_leave.leave_status == 'approved':
+                    messages.warning(request, f"您对于该课程在{leave_date}的请假已获批准，无需重复申请")
+                elif existing_leave.leave_status == 'pending':
+                    messages.warning(request, f"您对于该课程在{leave_date}的请假申请正在处理中，请耐心等待")
+                elif existing_leave.leave_status == 'rejected':
+                    messages.warning(request, f"您对于该课程在{leave_date}的请假申请已被拒绝，如需重新申请请联系老师")
+                return redirect('apply_leave')
+
+            # 创建请假记录
             LeaveRequest.objects.create(
                 student=student,
                 teacher=teacher,
                 course=course,
                 leave_date=leave_date,
-                leave_reason=reason,
-                # leave_status默认为'pending'
-                # apply_date自动设置为当前时间
+                leave_reason=reason
             )
 
             messages.success(request, "请假申请已提交，等待老师审批")
@@ -187,11 +204,12 @@ def apply_leave(request):
             messages.error(request, "学号不存在")
         except Course.DoesNotExist:
             messages.error(request, "课程代码不存在")
+        except IntegrityError:
+            messages.error(request, "您对于该课程已成功提交请假申请，无需重复提交")
         except Exception as e:
             messages.error(request, f"提交失败: {str(e)}")
 
     return render(request, 'attendance/apply_leave.html')
-
 
 #GET方法的时候，是到check_records这个网页；POST方法的时候，是到record_list这个网页
 def student_check_records(request):

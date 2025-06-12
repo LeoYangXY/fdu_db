@@ -117,9 +117,14 @@
         <h2><i class="bi bi-calendar-plus"></i> 请假申请表</h2>
         
         <!-- 显示消息 -->
+        <!-- 在消息显示部分保持不变 -->
         {% for message in messages %}
         <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
-            <i class="bi {% if message.tags == 'success' %}bi-check-circle{% else %}bi-exclamation-triangle{% endif %} me-2"></i>
+            <i class="bi
+                {% if message.tags == 'success' %}bi-check-circle
+                {% elif message.tags == 'warning' %}bi-exclamation-triangle
+                {% else %}bi-x-circle
+                {% endif %} me-2"></i>
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
