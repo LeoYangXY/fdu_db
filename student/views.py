@@ -316,7 +316,7 @@ def check_whether_too_many_leave(request):
         total_leaves=Count('leave_id')
     ).order_by('-total_leaves')
 
-    # 标记危险课程（请假>=3次）
+    # 标记危险课程（请假>=1次）
     for stat in leave_stats:
         stat['is_dangerous'] = stat['total_leaves'] >= 1  # 根据您的原始代码，>=1就标记为危险
 

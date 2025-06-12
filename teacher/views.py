@@ -196,7 +196,6 @@ def bulk_leave_approval(request):
         # 处理批量审批提交
         elif 'submit_approvals' in request.POST:
             course_code = request.POST.get('course_code')
-            decisions = request.POST.getlist('decisions')
 
             try:
                 course = Course.objects.get(course_code=course_code)
@@ -208,22 +207,21 @@ def bulk_leave_approval(request):
                 approved_count = 0
                 rejected_count = 0
 
-                for i, leave in enumerate(pending_requests):
-                    if i < len(decisions):
-                        decision = decisions[i]
+                for leave in pending_requests:
+                    decision = request.POST.get(f'decision_{leave.id}')
 
-                        if decision == 'approve':
-                            leave.leave_status = 'approved'
-                            approved_count += 1
-                        else:
-                            leave.leave_status = 'rejected'
-                            rejected_count += 1
+                    if decision == 'approve':
+                        leave.leave_status = 'approved'
+                        approved_count += 1
+                    elif decision == 'reject':
+                        leave.leave_status = 'rejected'
+                        rejected_count += 1
 
-                        leave.save()  # ✅ 确保更新保存
+                    leave.save()
 
                 messages.success(
                     request,
-                    f"成功处理审批: 批准 {approved_count} 条, 拒绝 {rejected_count} 条"
+                    f"成功批量处理审批: 批准 {approved_count} 条, 拒绝 {rejected_count} 条"
                 )
                 return redirect('bulk_leave_approval')
 
@@ -234,7 +232,6 @@ def bulk_leave_approval(request):
         'course': course,
         'leave_requests': leave_requests
     })
-
 
 
 def teacher_check_records(request):
