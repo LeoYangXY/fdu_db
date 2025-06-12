@@ -180,44 +180,61 @@ def apply_leave(request):
                 messages.error(request, "日期格式不正确，请使用YYYY-MM-DD格式")
                 return redirect('apply_leave')
 
-            # 检查是否已存在请假申请
-            existing_leave = LeaveRequest.objects.filter(
-                student=student,
-                course=course,
-                leave_date=leave_date
-            ).first()
+            # 生成leave_id（与模型中的逻辑一致）
+            leave_id = f"{leave_date.strftime('%Y%m%d')}-{student.student_id}-{course.course_code}"
+
+            # 检查是否已存在相同leave_id的请假申请
+            existing_leave = LeaveRequest.objects.filter(leave_id=leave_id).first()
 
             if existing_leave:
                 if existing_leave.leave_status == 'approved':
                     messages.warning(request, f"您对于该课程在{leave_date}的请假已获批准，无需重复申请")
                 elif existing_leave.leave_status == 'pending':
-                    messages.warning(request, f"您对于该课程在{leave_date}的请假申请正在处理中，请耐心等待")
+                    if reason != existing_leave.leave_reason:
+                        existing_leave.leave_reason = reason
+                        existing_leave.save()
+                        messages.info(request, f"已更新请假原因，等待老师审批")
+                    else:
+                        messages.warning(request, f"您对于该课程在{leave_date}的请假申请正在处理中")
+                    return redirect('apply_leave')
                 elif existing_leave.leave_status == 'rejected':
-                    messages.warning(request, f"您对于该课程在{leave_date}的请假申请已被拒绝，如需重新申请请联系老师")
+                    # 更新被拒绝的请假申请而不是创建新的
+                    existing_leave.leave_reason = reason
+                    existing_leave.leave_status = 'pending'  # 重置为待审批状态
+                    existing_leave.apply_date = timezone.now()  # 更新申请时间
+                    existing_leave.save()
+                    messages.info(request,
+                        f"您对于该课程在{leave_date}的请假申请曾被拒绝，现已更新并重新提交。"
+                        f"如需详细沟通，请联系{teacher.name}老师。"
+                    )
                 return redirect('apply_leave')
-
-            # 创建请假记录
-            LeaveRequest.objects.create(
-                student=student,
-                teacher=teacher,
-                course=course,
-                leave_date=leave_date,
-                leave_reason=reason
-            )
-
-            messages.success(request, "请假申请已提交，等待老师审批")
-            return redirect('apply_leave')
+            else:
+                # 如果没有现有记录，创建新记录
+                LeaveRequest.objects.create(
+                    student=student,
+                    teacher=teacher,
+                    course=course,
+                    leave_date=leave_date,
+                    leave_reason=reason,
+                    leave_id=leave_id  # 显式设置leave_id以避免save()时再次生成
+                )
+                messages.success(request, "请假申请已提交，等待老师审批")
+                return redirect('apply_leave')
 
         except Course.DoesNotExist:
             messages.error(request, "课程代码不存在")
-        except IntegrityError:
-            messages.error(request, "您对于该课程已成功提交请假申请，无需重复提交")
         except Exception as e:
             messages.error(request, f"提交失败: {str(e)}")
 
+    # 获取学生最近的请假申请状态用于提示
+    recent_leaves = LeaveRequest.objects.filter(
+        student=student
+    ).order_by('-apply_date')[:5]
+
     # 自动填充学生信息到模板
     return render(request, 'attendance/apply_leave.html', {
-        'student': student
+        'student': student,
+        'recent_leaves': recent_leaves
     })
 
 
