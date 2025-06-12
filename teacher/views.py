@@ -1,5 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 import logging
+from django.http import HttpResponse
+from openpyxl import Workbook
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)  # 确保这行在视图函数之前
 from django.shortcuts import render
@@ -282,6 +285,74 @@ def teacher_check_records(request):
 
     return render(request, 'attendance/teacher_check_records.html')
 
+
+def export_attendance(request, course_code):
+    # 获取课程和考勤数据
+    course = get_object_or_404(Course, course_code=course_code)
+    attendance_records = Attendance.objects.filter(course=course).select_related('student')
+    leave_records = LeaveRequest.objects.filter(course=course).select_related('student')
+
+    # 创建工作簿和工作表
+    wb = Workbook()
+    ws_attendance = wb.active
+    ws_attendance.title = "考勤记录"
+    ws_leave = wb.create_sheet(title="请假记录")
+
+    # 设置考勤记录表头
+    ws_attendance.append(['日期', '学号', '姓名', '状态', '签到时间'])
+
+    # 填充考勤数据
+    for record in attendance_records:
+        status_map = {
+            'present': '出席',
+            'absent': '缺席',
+            'approved_leave': '已批准请假'
+        }
+        status = status_map.get(record.status, record.status)
+        scan_time = record.scan_time.strftime("%H:%M") if record.scan_time else "-"
+        leave_id = record.leave_request.leave_id if record.leave_request else ""
+
+        ws_attendance.append([
+            record.date.strftime("%Y-%m-%d"),
+            record.student.student_id,
+            record.student.name,
+            status,
+            scan_time,
+            leave_id
+        ])
+
+    # 设置请假记录表头
+    ws_leave.append(['请假ID', '请假日期', '学号', '姓名', '原因', '状态', '申请时间'])
+
+    # 填充请假数据
+    for record in leave_records:
+        status_map = {
+            'approved': '已批准',
+            'pending': '待审批',
+            'rejected': '已拒绝'
+        }
+        status = status_map.get(record.leave_status, record.leave_status)
+
+        ws_leave.append([
+            record.leave_id,
+            record.leave_date.strftime("%Y-%m-%d"),
+            record.student.student_id,
+            record.student.name,
+            record.leave_reason or "",
+            status,
+            record.apply_date.strftime("%Y-%m-%d %H:%M")
+        ])
+
+    # 设置文件名和响应
+    filename = f"{course.course_name}_{course.course_code}_考勤记录_{timezone.now().strftime('%Y%m%d')}.xlsx"
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+
+    # 保存工作簿到响应
+    wb.save(response)
+    return response
 
 def teacher_dashboard(request):
     return render(request, 'teacher_dashboard.html')
