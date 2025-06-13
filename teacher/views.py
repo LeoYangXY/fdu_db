@@ -16,7 +16,7 @@ import time
 from django.utils import timezone
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from core.models import LeaveRequest, Attendance, Student, Enrollment
+from core.models import LeaveRequest, Attendance, Student, Enrollment, Teacher
 from django.db import transaction
 from django.db import transaction
 from django.utils import timezone
@@ -45,60 +45,11 @@ from io import BytesIO
 from django.core.files.base import ContentFile
 from core.models import Course
 
-#教师访问URL → 输入课程号 → 生成签到二维码
-#但是当前实现存在严重的安全漏洞：任何知道URL的人都可以生成签到二维码
-
-# 开始
-#   ↓
-# 教师生成二维码（调用 scan_qrcode_with_params 视图）
-#   ↓
-# 获取课程对象和当前日期
-#   ↓
-# 获取所有选课学生（X）
-#   ↓
-# 筛选出当天已批准请假的学生（Y）
-#   ↓
-# 批量插入/更新 Attendance 记录：
-#      Y → approved_leave
-#      X - Y → absent
-#   ↓
-# 跳转到扫码页面（scan.html）
-#   ↓
-# 学生扫码进入 validate_identity 视图
-#   ↓
-# 检查是否已有 approved_leave 或 present 记录？
-#     ↓ 是 → 阻止签到
-#     ↓ 否 → 检查是否超时？
-#         ↓ 是 → 无变化（保持 absent）
-#         ↓ 否 → 更新为 present
 from django.db import transaction
 from django.utils import timezone
 import qrcode
 from io import BytesIO
 from django.http import HttpResponse
-
-def get_ngrok_public_url():
-    """
-    动态获取当前 Ngrok 的公网 URL
-    返回格式: "https://xxxx-xxx-xxx-xxx-xxx.ngrok.io" 或 None（失败时）
-    """
-    try:
-        response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=3)
-        #此处是4042端口，这和我们django的8000端口的关系是：
-        #本地 Django 项目运行在8000端口（通过 python manage.py runserver 0.0.0.0:8000 启动）
-        #4042端口是Ngrok的管理后台端口，用于提供 API 查询公网 URL（如 https://xxx.ngrok-free.app）
-        if response.status_code == 200:
-            print(f"获取 Ngrok URL 成功")
-            tunnels = response.json()
-            for tunnel in tunnels['tunnels']:
-                if tunnel['proto'] == 'https':
-                    return tunnel['public_url']
-    except Exception as e:
-        print(f"获取 Ngrok URL 失败: {str(e)}")
-    return None
-
-
-
 
 
 def generate_course_qrcode(request):
@@ -106,8 +57,16 @@ def generate_course_qrcode(request):
         course_code = request.POST.get('course_code')
         limit_seconds = 120  # 二维码有效期120秒
 
+        # 获取当前教师
+        teacher_id = request.session.get('teacher_id')
+        if not teacher_id:
+            return JsonResponse({'error': '请先登录'}, status=401)
+
         try:
-            course = Course.objects.get(course_code=course_code)
+            current_teacher = Teacher.objects.get(teacher_id=teacher_id)
+            # 检查课程是否属于当前教师
+            course = Course.objects.get(course_code=course_code, teacher=current_teacher)
+
             today = timezone.now().date()
 
             # 1. 获取所有选课学生
@@ -168,24 +127,39 @@ def generate_course_qrcode(request):
                 'refresh_interval': 110  # 前端每110秒刷新一次(留10秒缓冲)
             })
 
+        except Teacher.DoesNotExist:
+            return JsonResponse({'error': '教师信息不存在'}, status=400)
         except Course.DoesNotExist:
-            return JsonResponse({'error': '课程不存在'}, status=400)
+            return JsonResponse({'error': '课程不存在或不属于当前教师'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
     return render(request, 'courses/generate_qrcode.html')
 
-#老师批准完毕之后，会在LeaveRequest表更新
+
 def bulk_leave_approval(request):
     course = None
     leave_requests = []
+
+    # 获取当前教师
+    teacher_id = request.session.get('teacher_id')
+    if not teacher_id:
+        messages.error(request, "请先登录")
+        return redirect('login')
+
+    try:
+        current_teacher = Teacher.objects.get(teacher_id=teacher_id)
+    except Teacher.DoesNotExist:
+        messages.error(request, "教师信息不存在")
+        return redirect('login')
 
     if request.method == 'POST':
         # 处理课程查询
         if 'query_course' in request.POST:
             course_code = request.POST.get('course_code')
             try:
-                course = Course.objects.get(course_code=course_code)
+                # 检查课程是否属于当前教师
+                course = Course.objects.get(course_code=course_code, teacher=current_teacher)
                 leave_requests = LeaveRequest.objects.filter(
                     course=course,
                     leave_status='pending'
@@ -195,14 +169,15 @@ def bulk_leave_approval(request):
                     messages.info(request, "该课程没有待审批的请假申请")
 
             except Course.DoesNotExist:
-                messages.error(request, "课程代码不存在")
+                messages.error(request, "课程代码不存在或不属于当前教师")
 
         # 处理批量审批提交
         elif 'submit_approvals' in request.POST:
             course_code = request.POST.get('course_code')
 
             try:
-                course = Course.objects.get(course_code=course_code)
+                # 检查课程是否属于当前教师
+                course = Course.objects.get(course_code=course_code, teacher=current_teacher)
                 pending_requests = LeaveRequest.objects.filter(
                     course=course,
                     leave_status='pending'
@@ -229,6 +204,8 @@ def bulk_leave_approval(request):
                 )
                 return redirect('bulk_leave_approval')
 
+            except Course.DoesNotExist:
+                messages.error(request, "课程代码不存在或不属于当前教师")
             except Exception as e:
                 messages.error(request, f"处理出错: {str(e)}")
 
@@ -239,32 +216,41 @@ def bulk_leave_approval(request):
 
 
 def teacher_check_records(request):
+    # 获取当前教师
+    teacher_id = request.session.get('teacher_id')
+    if not teacher_id:
+        messages.error(request, "请先登录")
+        return redirect('login')
+
+    try:
+        current_teacher = Teacher.objects.get(teacher_id=teacher_id)
+    except Teacher.DoesNotExist:
+        messages.error(request, "教师信息不存在")
+        return redirect('login')
+
     if request.method == 'POST':
         course_code = request.POST.get('course_code')
 
         try:
-            course = Course.objects.get(course_code=course_code)
+            # 检查课程是否属于当前教师
+            course = Course.objects.get(course_code=course_code, teacher=current_teacher)
 
             # 获取该课程的所有考勤记录
             attendance_records = Attendance.objects.filter(
                 course=course
             ).order_by('-date', 'student__name')
 
-            # print(attendance_records)
-
             # 获取该课程的所有请假记录
             leave_records = LeaveRequest.objects.filter(
                 course=course
             ).order_by('-leave_date', 'student__name')
-
-            # print(leave_records)
 
             # 统计出勤情况
             attendance_stats = {
                 'total': attendance_records.count(),
                 'present': attendance_records.filter(status='present').count(),
                 'absent': attendance_records.filter(status='absent').count(),
-                'approved_leave':attendance_records.filter(status='approved_leave').count(),
+                'approved_leave': attendance_records.filter(status='approved_leave').count(),
             }
             leave_stats = {
                 'total': leave_records.count(),
@@ -277,19 +263,31 @@ def teacher_check_records(request):
                 'attendance_records': attendance_records,
                 'leave_records': leave_records,
                 'attendance_stats': attendance_stats,
-                'leave_stats': leave_stats  # 新增统计信息
+                'leave_stats': leave_stats
             })
 
-
         except Course.DoesNotExist:
-            messages.error(request, "课程代码不存在")
+            messages.error(request, "课程代码不存在或不属于当前教师")
 
     return render(request, 'attendance/teacher_check_records.html')
 
 
 def export_attendance(request, course_code):
-    # 获取课程和考勤数据
-    course = get_object_or_404(Course, course_code=course_code)
+    # 获取当前教师
+    teacher_id = request.session.get('teacher_id')
+    if not teacher_id:
+        messages.error(request, "请先登录")
+        return redirect('login')
+
+    try:
+        current_teacher = Teacher.objects.get(teacher_id=teacher_id)
+    except Teacher.DoesNotExist:
+        messages.error(request, "教师信息不存在")
+        return redirect('login')
+
+    # 检查课程是否属于当前教师
+    course = get_object_or_404(Course, course_code=course_code, teacher=current_teacher)
+
     attendance_records = Attendance.objects.filter(course=course).select_related('student')
     leave_records = LeaveRequest.objects.filter(course=course).select_related('student')
 
@@ -354,6 +352,28 @@ def export_attendance(request, course_code):
     # 保存工作簿到响应
     wb.save(response)
     return response
+
+
+def teacher_dashboard(request):
+    # 获取当前教师
+    teacher_id = request.session.get('teacher_id')
+    if not teacher_id:
+        messages.error(request, "请先登录")
+        return redirect('login')
+
+    try:
+        current_teacher = Teacher.objects.get(teacher_id=teacher_id)
+    except Teacher.DoesNotExist:
+        messages.error(request, "教师信息不存在")
+        return redirect('login')
+
+    # 获取教师教授的课程
+    courses = Course.objects.filter(teacher=current_teacher)
+
+    return render(request, 'teacher_dashboard.html', {
+        'teacher': current_teacher,
+        'courses': courses
+    })
 
 def teacher_dashboard(request):
     return render(request, 'teacher_dashboard.html')

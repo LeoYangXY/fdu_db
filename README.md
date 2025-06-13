@@ -35,4 +35,31 @@ ngork内网穿透：
 当然，要从终端的ngrok那里看到底使用的是ngrok的哪个端口，看清楚是40还是42，然后在teacher的view那里需要修改
 
 
+
+#教师访问URL → 输入课程号 → 生成签到二维码
+# 开始
+#   ↓
+# 教师生成二维码（调用 scan_qrcode_with_params 视图）
+#   ↓
+# 获取课程对象和当前日期
+#   ↓
+# 获取所有选课学生（X）
+#   ↓
+# 筛选出当天已批准请假的学生（Y）
+#   ↓
+# 批量插入/更新 Attendance 记录：
+#      Y → approved_leave
+#      X - Y → absent
+#   ↓
+# 跳转到扫码页面（scan.html）
+#   ↓
+# 学生扫码进入 validate_identity 视图
+#   ↓
+# 检查是否已有 approved_leave 或 present 记录？
+#     ↓ 是 → 阻止签到
+#     ↓ 否 → 检查是否超时？
+#         ↓ 是 → 无变化（保持 absent）
+#         ↓ 否 → 更新为 present
+
+
 使用：python manage.py runserver_with_ip才能得到初始化界面
