@@ -399,6 +399,42 @@ def check_whether_too_many_leave(request):
     })
 
 
+def check_whether_too_many_absent(request):
+    """学生检查自己的缺勤次数"""
+    # 手动检查登录状态
+    if not request.session.get('is_logged_in'):
+        return redirect(f'/login/?next={request.path}')
+
+    # 获取学生信息
+    student_id = request.session.get('student_id')
+    if not student_id:
+        return redirect('/login/')
+
+    try:
+        student = Student.objects.get(student_id=student_id)
+    except Student.DoesNotExist:
+        return redirect('/login/')
+
+    # 获取该学生缺勤记录，按课程分组统计
+    absent_stats = Attendance.objects.filter(
+        student=student,
+        status='absent'
+    ).values(
+        'course__course_code',
+        'course__course_name'
+    ).annotate(
+        total_absents=Count('record_id')
+    ).order_by('-total_absents')
+
+    # 标记危险课程（缺勤>=1次）
+    for stat in absent_stats:
+        stat['is_dangerous'] = stat['total_absents'] >= 1
+
+    return render(request, 'attendance/absent_check.html', {
+        'student': student,
+        'absent_stats': absent_stats,
+        'searched': True
+    })
 
 def student_dashboard(request):
     # 手动检查登录状态

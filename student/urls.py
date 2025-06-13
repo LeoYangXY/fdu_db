@@ -17,6 +17,7 @@ urlpatterns = [
     path('student/records/', views.student_check_records, name='student_check_records'),
 
     #查看自己是否请假次数过多
-    path('check/whether_too_many_leave',views.check_whether_too_many_leave,name='check_whether_too_many_leave')
+    path('check/whether_too_many_leave',views.check_whether_too_many_leave,name='check_whether_too_many_leave'),
+    path('check/whether_too_many_absent', views.check_whether_too_many_absent, name='check_whether_too_many_absent')
 
 ]
