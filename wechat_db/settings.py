@@ -146,3 +146,15 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# 缓存配置
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'qrcode-attendance-cache',
+    }
+}
+
+# 会话设置
+SESSION_COOKIE_AGE = 3600  # 1小时
+SESSION_SAVE_EVERY_REQUEST = True

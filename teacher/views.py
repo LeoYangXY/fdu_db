@@ -20,7 +20,17 @@ from core.models import LeaveRequest, Attendance, Student, Enrollment
 from django.db import transaction
 from django.db import transaction
 from django.utils import timezone
-
+from django.shortcuts import render, redirect
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from django.core.cache import cache
+from django.contrib import messages
+from django.db import transaction
+from io import BytesIO
+import qrcode
+import time
+import hashlib
+import base64
 
 # Create your views here.
 import time
@@ -88,22 +98,22 @@ def get_ngrok_public_url():
     return None
 
 
+
+
+
 def generate_course_qrcode(request):
     if request.method == 'POST':
         course_code = request.POST.get('course_code')
-        limit_minutes = int(request.POST.get('limit', '300'))
+        limit_seconds = 120  # 二维码有效期120秒
 
         try:
-            # 获取课程对象
             course = Course.objects.get(course_code=course_code)
             today = timezone.now().date()
 
-            # 1. 获取所有选课学生（通过Enrollment表）
+            # 1. 获取所有选课学生
             enrollments = Enrollment.objects.filter(course=course)
             student_ids = enrollments.values_list('student_id', flat=True)
             students = Student.objects.filter(student_id__in=student_ids)
-
-            print(enrollments)
 
             # 2. 获取已批准请假的学生
             approved_leave_student_ids = LeaveRequest.objects.filter(
@@ -112,20 +122,18 @@ def generate_course_qrcode(request):
                 leave_status='approved'
             ).values_list('student_id', flat=True)
 
-            print(approved_leave_student_ids)
-
             # 3. 批量处理考勤记录
             with transaction.atomic():
-                # 3.1 处理请假学生
+                # 处理请假学生
                 for student_id in approved_leave_student_ids:
                     Attendance.objects.update_or_create(
-                        student_id=student_id,  # 直接使用student_id赋值
+                        student_id=student_id,
                         course=course,
                         date=today,
                         defaults={'status': 'approved_leave'}
                     )
 
-                # 3.2 处理缺勤学生（X - Y）
+                # 处理缺勤学生
                 absent_students = students.exclude(student_id__in=approved_leave_student_ids)
                 for student in absent_students:
                     attendance, created = Attendance.objects.get_or_create(
@@ -137,39 +145,35 @@ def generate_course_qrcode(request):
                         attendance.status = 'absent'
                         attendance.save()
 
-            # 生成二维码（带时间戳）
-            # 动态获取 Ngrok 公网 URL 或 fallback 到本地
-            ngrok_url = get_ngrok_public_url()
-            if ngrok_url:
-                # 使用 Ngrok 公网 URL
-                qr_url = f"{ngrok_url}/student/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
-                print(qr_url)
-            else:
-                # Fallback: 使用本地地址（仅限同一局域网）
-                qr_url = request.build_absolute_uri(
-                    f"/student/scan/{course_code}/{int(time.time())}/{limit_minutes}/"
-                )
-                print(qr_url)
-                print("警告: 使用本地地址生成二维码，外网设备无法访问")
-            #根据当前项目所处在的ip地址，生成一个完整的url，那么其实前缀就是本机的ip地址。
-            #就是将相对路径（如 /student/scan/...）转换为 完整 URL，格式为： http://<当前服务器的IP或域名>:<端口>/student/scan/...
-            #而由于我们的项目使用runserver那个命令简单启动，因此是跑在192.168.xx.xx这个ip下面的
-            #而192.168.x.x  10.x.x.x  172.16.x.x是私有IP（局域网专用），具有以下特性：
-            #仅限同一局域网内访问（如连接同一路由器 / 交换机的设备）
-            #公网无法直接访问（互联网上的设备无法通过私有 IP 找到你的电脑）
-            #然后处于同一局域网的手机对其进行扫码，就可以跳转到这个完整的url（如果不是同一局域网，那么就无法跳转）
+            # 生成动态二维码
+            timestamp = int(time.time())
+            nonce = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
+
+            # 构建带时效的签到URL
+            qr_url = request.build_absolute_uri(
+                f"/student/scan/{course_code}/{timestamp}/{nonce}/"
+            )
+
+            # 生成二维码图片
             qr_img = qrcode.make(qr_url)
             buffer = BytesIO()
             qr_img.save(buffer, format="PNG")
-            return HttpResponse(buffer.getvalue(), content_type="image/png")
+
+            # 缓存nonce防止重放
+            cache.set(f'qrcode_nonce_{nonce}', 1, timeout=limit_seconds)
+
+            return JsonResponse({
+                'qr_image': base64.b64encode(buffer.getvalue()).decode('utf-8'),
+                'expires_at': timestamp + limit_seconds,
+                'refresh_interval': 110  # 前端每110秒刷新一次(留10秒缓冲)
+            })
 
         except Course.DoesNotExist:
-            return render(request, 'error.html', {'error': '课程不存在'})
+            return JsonResponse({'error': '课程不存在'}, status=400)
         except Exception as e:
-            return render(request, 'error.html', {'error': f'系统错误: {str(e)}'})
+            return JsonResponse({'error': str(e)}, status=500)
 
     return render(request, 'courses/generate_qrcode.html')
-
 
 #老师批准完毕之后，会在LeaveRequest表更新
 def bulk_leave_approval(request):

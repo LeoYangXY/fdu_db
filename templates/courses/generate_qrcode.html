@@ -1,148 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>生成课程二维码</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成签到二维码</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
     <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 40px;
-        }
-        
-        .container {
+        .qrcode-container {
             max-width: 600px;
-            background-color: white;
+            margin: 2rem auto;
+            padding: 2rem;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            padding: 30px;
-            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
-        
-        h2 {
-            color: #2c3e50;
-            font-weight: 600;
-            margin-bottom: 25px;
+        #qrcode-display {
             text-align: center;
-            border-bottom: 2px solid #f1f1f1;
-            padding-bottom: 15px;
+            margin: 1.5rem 0;
         }
-        
-        .form-container {
-            margin-bottom: 30px;
+        #countdown {
+            font-size: 1.2rem;
+            text-align: center;
+            margin-top: 1rem;
+            color: #6c757d;
         }
-        
-        .form-label {
-            font-weight: 500;
-            color: #495057;
-            margin-bottom: 8px;
-        }
-        
-        .form-control {
-            border-radius: 8px;
-            padding: 10px 15px;
-            border: 1px solid #ced4da;
-            transition: all 0.3s;
-        }
-        
         .form-control:focus {
-            border-color: #80bdff;
-            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.15);
+            border-color: #4e73df;
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
         }
-        
         .btn-primary {
             background-color: #4e73df;
             border-color: #4e73df;
-            font-weight: 500;
-            padding: 10px 25px;
-            border-radius: 8px;
-            transition: all 0.3s;
-            width: 100%;
         }
-        
         .btn-primary:hover {
             background-color: #2e59d9;
             border-color: #2e59d9;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
-        }
-        
-        .qrcode-container {
-            text-align: center;
-            margin-top: 30px;
-            padding: 25px;
-            background-color: #f8fafc;
-            border-radius: 10px;
-            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
-        }
-        
-        .qrcode-url {
-            word-break: break-all;
-            background-color: #f1f1f1;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 14px;
-            margin: 15px 0;
-        }
-        
-        .qrcode-img {
-            border: 10px solid white;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            margin: 0 auto;
-            transition: transform 0.3s;
-        }
-        
-        .qrcode-img:hover {
-            transform: scale(1.05);
-        }
-        
-        @media (max-width: 576px) {
-            .container {
-                padding: 20px;
-                margin: 20px;
-            }
-            
-            h2 {
-                font-size: 24px;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2><i class="bi bi-qr-code"></i> 生成课程签到二维码</h2>
-        
-        <div class="form-container">
-            <form method="post">
+        <div class="qrcode-container">
+            <h2 class="text-center mb-4"><i class="bi bi-qr-code"></i> 生成课程签到二维码</h2>
+
+            <form id="qrcode-form">
                 {% csrf_token %}
                 <div class="mb-3">
-                    <label for="courseCode" class="form-label">课程代码</label>
-                    <input type="text" class="form-control" id="courseCode" 
-                           name="course_code" required placeholder="请输入课程代码">
+                    <label for="course_code" class="form-label">课程代码</label>
+                    <input type="text" class="form-control" id="course_code" name="course_code" required>
                 </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-generate"></i> 生成二维码
+                <button type="button" class="btn btn-primary w-100" onclick="generateQrcode()">
+                    <i class="bi bi-qr-code-scan"></i> 生成二维码
                 </button>
             </form>
+
+            <div id="qrcode-display" style="display: none;">
+                <h4 class="text-center mb-3" id="course-title"></h4>
+                <img id="dynamic-qrcode" class="img-fluid" src="" alt="动态二维码">
+                <div id="countdown"></div>
+            </div>
         </div>
-        
-        {% if qrcode_url %}
-        <div class="qrcode-container">
-            <h4><i class="bi bi-link-45deg"></i> 扫码后将跳转至：</h4>
-            <div class="qrcode-url">{{ qrcode_url }}</div>
-            <img src="{{ qrcode_url }}" class="qrcode-img" width="200" alt="课程签到二维码">
-            <p class="text-muted mt-3">请将此二维码展示给学生扫描签到</p>
-        </div>
-        {% endif %}
     </div>
 
-    <!-- Bootstrap JS -->
+    <script>
+        let refreshTimer;
+        let countdownTimer;
+        const REFRESH_INTERVAL = 110000; // 110秒刷新一次(毫秒)
+
+        function generateQrcode() {
+            // 清除之前的定时器
+            clearTimeout(refreshTimer);
+            clearInterval(countdownTimer);
+
+            const formData = new FormData(document.getElementById('qrcode-form'));
+            const courseCode = document.getElementById('course_code').value;
+
+            // 显示课程信息
+            document.getElementById('course-title').textContent = `课程: ${courseCode}`;
+
+            fetch('{% url "generate_qrcode" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // 显示二维码
+                document.getElementById('qrcode-display').style.display = 'block';
+                document.getElementById('dynamic-qrcode').src =
+                    `data:image/png;base64,${data.qr_image}`;
+
+                // 启动倒计时
+                startCountdown(data.expires_at);
+
+                // 设置下次刷新
+                refreshTimer = setTimeout(() => {
+                    updateQrcode();
+                }, REFRESH_INTERVAL);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('生成二维码失败');
+            });
+        }
+
+        function updateQrcode() {
+            const formData = new FormData(document.getElementById('qrcode-form'));
+
+            fetch('{% url "generate_qrcode" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.error) {
+                    clearTimeout(refreshTimer);
+                    clearInterval(countdownTimer);
+                    document.getElementById('countdown').textContent = '二维码生成失败';
+                    return;
+                }
+
+                // 更新二维码
+                document.getElementById('dynamic-qrcode').src =
+                    `data:image/png;base64,${data.qr_image}`;
+
+                // 重置倒计时
+                clearInterval(countdownTimer);
+                startCountdown(data.expires_at);
+
+                // 设置下次刷新
+                refreshTimer = setTimeout(() => {
+                    updateQrcode();
+                }, REFRESH_INTERVAL);
+            });
+        }
+
+        function startCountdown(expiresAt) {
+            const countdownEl = document.getElementById('countdown');
+            const now = Math.floor(Date.now() / 1000);
+            let remaining = expiresAt - now;
+
+            // 立即更新一次显示
+            updateCountdownDisplay();
+
+            // 设置定时器
+            countdownTimer = setInterval(() => {
+                remaining--;
+                updateCountdownDisplay();
+
+                if(remaining <= 0) {
+                    clearInterval(countdownTimer);
+                    countdownEl.innerHTML = '<span class="text-danger">二维码已失效</span>';
+                }
+            }, 1000);
+
+            function updateCountdownDisplay() {
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                countdownEl.innerHTML = `二维码将在 <strong>${mins}分${secs}秒</strong> 后失效`;
+            }
+        }
+
+        // 离开页面时清除所有定时器
+        window.addEventListener('beforeunload', () => {
+            clearTimeout(refreshTimer);
+            clearInterval(countdownTimer);
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

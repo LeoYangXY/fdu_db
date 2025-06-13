@@ -5,8 +5,7 @@ urlpatterns = [
 
     path('dashboard/', views.student_dashboard, name='student_dashboard'),
 
-    path('scan/<str:course_code>/<str:timestamp>/<str:limit>/', views.scan_qrcode_with_params,
-         name='scan_qrcode_with_params'),
+    path('scan/<str:course_code>/<str:timestamp>/<str:nonce>/', views.scan_qrcode_with_params, name='scan_qrcode'),
     path('validate/', views.validate_identity, name='validate_identity'),  # 处理签到
     path('confirm/', views.confirm_attendance, name='confirm_attendance'),  # 确认界面
 

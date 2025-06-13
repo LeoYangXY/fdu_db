@@ -41,9 +41,17 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import login_required
 import time
 
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.utils import timezone
+from django.core.cache import cache
+from django.contrib import messages
+from django.urls import reverse
+import time
+import hashlib
 
-def scan_qrcode_with_params(request, course_code, timestamp, limit):
-    """仅允许已登录学生访问签到页面"""
+def scan_qrcode_with_params(request, course_code, timestamp, nonce):
+    """扫码签到页面（兼容教师端生成的二维码）"""
     # 检查session中的登录标记
     if not request.session.get('is_logged_in') or not request.session.get('student_id'):
         login_url = f"{reverse('login')}?next={request.path}"
@@ -53,20 +61,33 @@ def scan_qrcode_with_params(request, course_code, timestamp, limit):
         # 从session获取学生信息
         student_id = request.session['student_id']
         student = Student.objects.get(student_id=student_id)
+        course = Course.objects.get(course_code=course_code)
 
         # 参数处理
         timestamp_int = int(timestamp)
-        limit_int = int(limit)
-        remaining = timestamp_int + limit_int * 60 - int(time.time())
+        current_time = int(time.time())
+        remaining = timestamp_int + 120 - current_time  # 固定120秒有效期
+
+        # 验证nonce有效性
+        if not cache.get(f'qrcode_nonce_{nonce}'):
+            raise ValueError("二维码已失效，请获取最新二维码")
+
+        # 如果是AJAX请求，返回JSON数据
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'remaining_seconds': max(0, remaining),
+                'is_valid': remaining > 0
+            })
 
         return render(request, 'attendance/scan.html', {
-            'course_code': course_code,
+            'course': course,
             'timestamp': timestamp,
-            'limit': limit,
+            'nonce': nonce,
             'remaining_seconds': max(0, remaining),
-            'student_id': student_id,
-            'student_name': student.name  # 添加学生姓名
+            'student': student,
+            'refresh_interval': 5000  # 5秒刷新一次
         })
+
     except Exception as e:
         return render(request, 'attendance/error.html', {
             'error': str(e),
@@ -75,9 +96,12 @@ def scan_qrcode_with_params(request, course_code, timestamp, limit):
 
 
 def validate_identity(request):
+    """签到验证（保持原有稳定逻辑）"""
     if request.method == 'POST':
-        # 从session获取学生信息（与scan_qrcode_with_params保持一致）
+        # 从session获取学生信息
         if not request.session.get('is_logged_in') or not request.session.get('student_id'):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': '请先登录'}, status=401)
             messages.error(request, "请先登录")
             return redirect('login')
 
@@ -87,60 +111,91 @@ def validate_identity(request):
 
             course_code = request.POST.get('course_code', '').strip()
             timestamp = request.POST.get('timestamp', '').strip()
-            limit = request.POST.get('limit', '').strip()
+            nonce = request.POST.get('nonce', '').strip()
 
             # 参数基础验证
-            if not all([course_code, timestamp, limit]):
-                raise ValueError("所有参数必须填写")
+            if not all([course_code, timestamp, nonce]):
+                error = "所有参数必须填写"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': error}, status=400)
+                raise ValueError(error)
 
-            # 时效性验证
-            timestamp_int = int(timestamp)
-            limit_int = int(limit)
-            if time.time() > timestamp_int + limit_int * 60:
-                raise ValueError("签到已超时")
+            # 时效性验证(120秒内有效)
+            if time.time() > int(timestamp) + 120:
+                error = "签到已超时"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': error}, status=400)
+                raise ValueError(error)
 
-            # 检查是否已签到（防止重复签到）
-            cache_key = f"attendance:{course_code}:{student_id}:{timezone.now().date().isoformat()}"
+            # 验证nonce有效性
+            if not cache.get(f'qrcode_nonce_{nonce}'):
+                error = "二维码已失效"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': error}, status=400)
+                raise ValueError(error)
+
+            # 检查是否已签到
+            today = timezone.now().date()
+            cache_key = f"attendance:{course_code}:{student_id}:{today.isoformat()}"
             if cache.get(cache_key):
-                raise PermissionError("请勿重复签到")
+                error = "请勿重复签到"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': error}, status=400)
+                raise PermissionError(error)
 
             # 查询考勤记录
-            today = timezone.now().date()
+            course = Course.objects.get(course_code=course_code)
             record = Attendance.objects.get(
                 student=current_student,
-                course__course_code=course_code,
+                course=course,
                 date=today
             )
 
             # 状态检查
             if record.status == 'approved_leave':
-                raise PermissionError("已批准请假，无需签到")
+                error = "已批准请假，无需签到"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': error}, status=400)
+                raise PermissionError(error)
             if record.status == 'present':
-                raise PermissionError("请勿重复签到")
+                error = "请勿重复签到"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'error': error}, status=400)
+                raise PermissionError(error)
 
             # 更新状态
             record.status = 'present'
             record.scan_time = timezone.now()
             record.save()
 
-            # 写入缓存
+            # 写入缓存防止重复签到
             cache.set(cache_key, 'present', timeout=24 * 60 * 60)
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'redirect_url': reverse('confirm_attendance')
+                })
 
             messages.success(request, "签到成功！")
             return redirect('confirm_attendance')
 
         except Attendance.DoesNotExist:
-            messages.error(request, "未找到考勤记录，请联系教师")
+            error = "未找到考勤记录，请联系教师"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': error}, status=404)
+            messages.error(request, error)
         except Exception as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': str(e)}, status=400)
             messages.error(request, str(e))
 
-        return render(request, 'attendance/error.html', {
-            'course_code': course_code,
-            'timestamp': timestamp,
-            'limit': limit
-        })
+        return redirect('student_dashboard')
 
-    messages.error(request, "无效请求方法")
+    error = "无效请求方法"
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'error': error}, status=405)
+    messages.error(request, error)
     return redirect('login')
 
 def confirm_attendance(request):
