@@ -228,11 +228,21 @@ def apply_leave(request):
             course = Course.objects.get(course_code=course_code)
             teacher = course.teacher
 
+            # 检查学生是否选修了这门课程
+            if not Enrollment.objects.filter(student=student, course=course).exists():
+                messages.error(request, "您未选修该课程，无法申请请假")
+                return redirect('apply_leave')
+
             # 日期转换
             try:
                 leave_date = datetime.strptime(leave_date_str, '%Y-%m-%d').date()
             except ValueError:
                 messages.error(request, "日期格式不正确，请使用YYYY-MM-DD格式")
+                return redirect('apply_leave')
+
+            # 检查请假日期是否是过去日期
+            if leave_date < timezone.now().date():
+                messages.error(request, "不能为过去的日期申请请假")
                 return redirect('apply_leave')
 
             # 生成leave_id（与模型中的逻辑一致）
@@ -257,6 +267,7 @@ def apply_leave(request):
                     existing_leave.leave_reason = reason
                     existing_leave.leave_status = 'pending'  # 重置为待审批状态
                     existing_leave.apply_date = timezone.now()  # 更新申请时间
+                    existing_leave.reject_reason = ''  # 清空拒绝原因
                     existing_leave.save()
                     messages.info(request,
                         f"您对于该课程在{leave_date}的请假申请曾被拒绝，现已更新并重新提交。"
@@ -286,10 +297,16 @@ def apply_leave(request):
         student=student
     ).order_by('-apply_date')[:5]
 
+    # 获取学生选修的课程列表用于下拉菜单
+    enrolled_courses = Course.objects.filter(
+        enrollment__student=student
+    ).distinct()
+
     # 自动填充学生信息到模板
     return render(request, 'attendance/apply_leave.html', {
         'student': student,
-        'recent_leaves': recent_leaves
+        'recent_leaves': recent_leaves,
+        'enrolled_courses': enrolled_courses  # 只显示学生选修的课程
     })
 
 
