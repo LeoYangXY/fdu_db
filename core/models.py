@@ -130,22 +130,4 @@ class Attendance(models.Model):
                 name='idx_student_course_date'
             )
         ]
-#
-# class Notification(models.Model):
-#     notification_id = models.AutoField(primary_key=True)
-#     receiver = models.ForeignKey(
-#         Student,
-#         related_name='received_notifications',
-#         on_delete=models.CASCADE
-#     )
-#     sender = models.ForeignKey(
-#         Teacher,
-#         related_name='sent_notifications',
-#         on_delete=models.CASCADE
-#     )
-#     content = models.TextField()
-#     send_time = models.DateTimeField(auto_now_add=True)
-#
-#     class Meta:
-#         verbose_name = "通知"
-#         verbose_name_plural = "通知"
+
