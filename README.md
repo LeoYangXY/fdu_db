@@ -27,7 +27,7 @@
    在终端中运行以下命令（确保当前目录包含 `env.yaml` 文件）：
    ```bash
    conda env create -f env.yaml
-   
+
 
 ## 数据库设置
 
@@ -83,7 +83,7 @@
    - 导航至“数据导入”功能。
 
 2. **导入 Excel 数据**：
-   - 压缩包中提供了四个 Excel 文件，分别对应数据库信息：
+   - data这个压缩包中提供了四个 Excel 文件，分别对应数据库信息：
      - `course_template`：课程信息
      - `student_template`：学生信息
      - `teacher_template`：教师信息
